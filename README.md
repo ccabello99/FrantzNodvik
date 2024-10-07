@@ -27,6 +27,6 @@ ParamScan(fn_params, <initial_seed_waist>, <adjusted_seed_waist>, <initial_pump_
 
 
 ## Data sources 
-Cross-sections: Sorokin, E., "Solid-State Materials for Few-Cycle Pulse Generation and Amplification", 2004
+1) Cross-sections: Sorokin, E., "Solid-State Materials for Few-Cycle Pulse Generation and Amplification", 2004
 
-Nonlinear refractive index: Major, A, et al., "Dispersion of the nonlinear refractive index in sapphire", 2004 
+2) Nonlinear refractive index: Major, A, et al., "Dispersion of the nonlinear refractive index in sapphire", 2004 
