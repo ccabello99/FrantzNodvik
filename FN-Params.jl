@@ -2,6 +2,7 @@
 
 @with_kw mutable struct FN_Params{T}
 
+    # Physical constants
     h::T = 6.62607015e-34 
     c::T = 2.998e8
     kb::T = 1.38e-23
@@ -10,16 +11,6 @@
     ωs::T = 2π * c / λs 
     ωp::T = 2π * c / λp
     frep::T = 1e3
-
-    # Beam waists (1/e^2)
-    w_xs::T = 1100e-6 / 2
-    w_ys::T = 1100e-6 / 2
-    w_xp::T = 1600e-6 / 2
-    w_yp::T = 1600e-6 / 2
-
-    # Rayleigh length (Gaussian)
-    z0_p::T = (π * (w_xp) * (w_yp)) / λp 
-    z0_s::T = (π * (w_xs) * (w_ys)) / λs
 
     # Crystal Parameters
     α::T = 1.92e2 
@@ -32,10 +23,6 @@
     #ηc = (1 + (T1rad / T1nr) * exp(-ΔE / (kb * T0)))
     ηc::T = 1
     ηq::T = (λp / λs)
-
-    # Initial energies
-    Ep0::T = 21.2e-3
-    Ein0::T = 1.2e-3
 
     # Thermal lens TODO
     #=
@@ -53,9 +40,6 @@
     GDD::T = 208000e-30
     ϕ0::T = 0
     τ::T = τs * √(1+(4log(2)*GDD/(τs^2))^2) # Real pulse duration
-
-    #Initial power
-    Ps0::T = 0.94 * Ein0 / τs
 
     # Grid size
     N::Int = 200
@@ -92,9 +76,8 @@
     f::Vector{T} = (fs/nt) .* range(-nt/2, nt/2, nt)
     f0::T = ωs / 2π
 
-    # Choose passes before expanding (start always set to 2)
+    # Index to start saving results after a single pass
     start = 2
-    stop = 3
 end  
 
 fn_params = FN_Params{Float64}()

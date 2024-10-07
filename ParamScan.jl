@@ -13,7 +13,6 @@ function ParamScan(fn_param::FN_Params, w_init::Real, w_exp::Real, wp_init::Real
 
     @unpack Ps0, t0, c, ϕ0, τs, GDD, h, ωs, t, A, ηc, ηq, x0, y0, N, x, y, start, pass = fn_param
     
-    At = ComplexEnvelope(sqrt(Ps0), t0, ϕ0, τs, GDD)
 
     # Sapphire properties
     sapphire = SapphireSellmeier()
@@ -22,11 +21,11 @@ function ParamScan(fn_param::FN_Params, w_init::Real, w_exp::Real, wp_init::Real
     σa, σe = getCrossSections("absorption_crosssection.csv", "emission_crosssection.csv")
 
 
-
     # Wavelength-dependent saturation fluence
     Jsat(λ) = h*(ωs/(2π)) / σe(λ)
 
     # FFT plan to speed up Gabor transforms
+    At = ComplexEnvelope(1, t0, ϕ0, τs, GDD)
     fft_plan = plan_fft(At.(t); flags=FFTW.MEASURE)
     
     # Arrays for post-processing
@@ -78,6 +77,10 @@ function ParamScan(fn_param::FN_Params, w_init::Real, w_exp::Real, wp_init::Real
         # Current pump and seed energies
         Ep0 = round(Ep_init + (5e-3 * (I[5] - 1)), digits=5)
         Ein0 = round(Ein_init + (0.6e-3 * (I[6] - 1)), digits=5)
+
+        # Seed pulse temporal envelope profile
+        Ps0 = 0.94 * Ein_init / τs
+        At = ComplexEnvelope(sqrt(Ps0), t0, ϕ0, τs, GDD)
 
         # Initialize fluences
         Jin, Jout, Jsto = createFluenceArrays(fn_param, w_xs, w_ys, w_xp)
@@ -152,10 +155,16 @@ function ParamScan(fn_param::FN_Params, w_init::Real, w_exp::Real, wp_init::Real
         w_init_arr = [w_init]
         w_exp_arr = [w_exp]
         wp_init_arr = [wp_init]
+        pass_exp = [2]
+        Ep_arr = [Ep_init]
+        Ein_arr = [Ein_init]
     else
-        w_init_arr = range(w_init, round(w_init + (50e-6 * steps), digits=4), steps)
-        w_exp_arr = range(w_exp, round(w_exp + (50e-6 * steps), digits=4), steps)
-        wp_init_arr = range(wp_init, round(wp_init + (500e-6 * steps), digits=4), steps)
+        w_init_arr = range(w_init, round(w_init + (200e-6 * steps), digits=4), steps)
+        w_exp_arr = range(w_exp, round(w_exp + (200e-6 * steps), digits=4), steps)
+        wp_init_arr = range(wp_init, round(wp_init + (200e-6 * steps), digits=4), steps)
+        pass_exp = range(2, 2+steps; step=1)
+        Ep_arr = range(Ep_init, round(Ep_init + (5e-3 * steps), digits=4), steps)
+        Ein_arr = range(Ein_init, round(Ein_init + (0.6e-3 * steps), digits=4), steps)
     end
 
     # Save arrays after all scans
@@ -163,6 +172,9 @@ function ParamScan(fn_param::FN_Params, w_init::Real, w_exp::Real, wp_init::Real
     CSV.write("w_init_arr.csv", Tables.table(w_init_arr), writeheader=true)
     CSV.write("w_exp_arr.csv", Tables.table(w_exp_arr), writeheader=true)
     CSV.write("wp_init_arr.csv", Tables.table(wp_init_arr), writeheader=true)
+    CSV.write("pass_exp.csv", Tables.table(pass_exp), writeheader=true)
+    CSV.write("Ep_arr.csv", Tables.table(Ep_arr), writeheader=true)
+    CSV.write("Ein_arr.csv", Tables.table(Ein_arr), writeheader=true)
 
     if LG
         save("LG_E_allpasses_allsteps.jld", "Epasses", Epasses)
