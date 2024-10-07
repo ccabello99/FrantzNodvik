@@ -4,23 +4,23 @@ Julia code capable of simulating the amplification of a laser pulse in a multi-p
 
 ## To run: 
 1) Compile ParamScan.jl
-2) Run ParamScan(fn_params, <initial_seed_waist>, <adjusted_seed_waist>, <initial_pump_waist>, <initial_pump_energy>, <initial_seed_energy>, <number_of_steps_for_each_parameters>, <convert to LG Mode (true/false)>, <visualize during scan (true/false)>)
+2) Run `ParamScan(fn_params, <initial_seed_waist>, <adjusted_seed_waist>, <initial_pump_waist>, <initial_pump_energy>, <initial_seed_energy>, <number_of_steps_for_each_parameters>, <convert to LG Mode (true/false)>, <visualize during scan (true/false)>)`
 
 ## For your information: 
 
-i) Provide values in SI units
+- Provide values in SI units
 
-ii) For given number of steps, each scan will increment waist sizes by 200 μm, pass number of seed waist adjustment by 1, pump energy by 5 mJ, and seed energy by 600 μJ. Each scan parameter will be saved in a vector in .csv format.
+- For given number of steps, each scan will increment waist sizes by 200 μm, pass number of seed waist adjustment by 1, pump energy by 5 mJ, and seed energy by 600 μJ. Each scan parameter will be saved in a vector in .csv format.
 
-iii) Multi-dimensional arrays will be saved after each scan in .jld format. These include:
-1) Seed energy for each pass
-2) Extraction efficiency for each pass
-3) B-integral for each pass
-4) Effective area for each pass
-5) Maximum energy after all passes
-6) Pass number where maximum energy is reached
-7) Maximum B-integral after all passes
-8) Maximum effective area after all passes
+- Multi-dimensional arrays will be saved after each scan in .jld format. These include:
+  - Seed energy for each pass
+  - Extraction efficiency for each pass
+  - B-integral for each pass
+  - Effective area for each pass
+  - Maximum energy after all passes
+  - Pass number where maximum energy is reached
+  - Maximum B-integral after all passes
+  - Maximum effective area after all passes
 
 
 ## Data sources 
