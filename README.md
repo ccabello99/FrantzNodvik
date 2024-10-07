@@ -5,8 +5,9 @@ Julia code capable of simulating the amplification of a laser pulse in a multi-p
 ## To run: 
 1) Compile ParamScan.jl
 2) Run:
-```julia
+```language
 ParamScan(fn_params, <initial_seed_waist>, <adjusted_seed_waist>, <initial_pump_waist>, <initial_pump_energy>, <initial_seed_energy>, <number_of_steps_for_each_parameters>, <convert to LG Mode (true/false)>, <visualize during scan (true/false)>)
+```
 
 ## For your information: 
 
