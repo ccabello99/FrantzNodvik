@@ -25,7 +25,8 @@ function ParamScan(fn_param::FN_Params, w_init::Real, w_exp::Real, wp_init::Real
     Jsat(λ) = h*(ωs/(2π)) / σe(λ)
 
     # FFT plan to speed up Gabor transforms
-    At = ComplexEnvelope(1, t0, ϕ0, τs, GDD)
+    scale = sqrt(1/(-2*log(0.5)))*sqrt(1/2) # scale such that pulse duration @ FWHM = τs
+    At = ComplexEnvelope(1, t0, ϕ0, τs*scale, GDD)
     fft_plan = plan_fft(At.(t); flags=FFTW.MEASURE)
     
     # Arrays for post-processing

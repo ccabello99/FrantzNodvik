@@ -6,15 +6,6 @@ function meshgrid(x::Vector, y::Vector)
 end
 
 function LaguerreGauss(params::FN_Params, P::Int, L::Int, A::Real, W::Real)
-
-    # Define polarization (to do)
-    #k = π/2  
-    #ω = π/25  
-    #E0 = 1 
-    #Ex(z, t) = E0 .* real.(exp(im*(k .* z .- ω .* t))) .* exp(-(z).^2 ./ 6)
-    #Ey1(z, t) = E0 .* real.(exp(im*(k .* z .- ω .* t - π/2))) .* exp(-(z).^2 ./ 6)
-    #Ey2(z, t) = E0 .* real.(exp(im*(k .* z .- ω .* t + π/2))) .* exp(-(z).^2 ./ 6)
-
     
     # Laguerre-Gauss equation: 
     # (ref: N. Hodgson, 'Laser Resonators and Beam Propagation'.(Pg 222)) 
@@ -102,7 +93,7 @@ function calcAeff(x::Vector, y::Vector, J::Matrix)
     return Aeff
 end
 
-# Electric field temporal profile
+# Electric field temporal profile  || if you want to input τ @ FWHM, scale by [sqrt(1/(-2*log(0.5)))*sqrt(1/2)]
 function ComplexEnvelope(A0::Real, t0::Real, ϕ::Real, τ::Real, GDD::Real)
     C = sqrt(1 + (GDD / τ^2)^2)
     ϕ_σ = (1/2) * atan(GDD / τ^2)
@@ -113,10 +104,11 @@ end
 
 println("EM-Field.jl compiled")
 
-
 #=
 
-N = 250
+# To visualize LG-modes (spatio-temporally if wanted)
+
+N = 100
 xmax = 20e-4
 ymax = xmax
 dx = xmax / N
@@ -124,9 +116,9 @@ dy = dx
 
 x = range(0, xmax, N) .* 1e3
 y = range(0, ymax, N) .* 1e3
+z = range(0, xmax, N) .* 1e3
 x0 = xmax / 2
 y0 = ymax / 2
-
 
 p = 0
 l = 1
@@ -140,6 +132,35 @@ E = real.(Z)
 ϕ = angle.(Z)
 Ixy = abs.(Z)
 
+scale = sqrt(1/(-2*log(0.5)))*sqrt(1/2)
+t = collect(range(-30e-15,30e-15,N))
+At = ComplexEnvelope(1, 0, 0, 30e-15*scale, 0)
+A_t = At.(t)
+ω = 2.998e8*2π/800e-9
+
+full_field = zeros(ComplexF64, N, N, N)
+
+for I in CartesianIndices((N, N, N))
+    i, j, k = (I[1], I[2], I[3])
+    full_field[i, j, k] = Z[j, k] * exp(1im * ω * t[i]) * A_t[i]
+end
+
+Exyt = real.(full_field)
+Ixyt = abs.(full_field)    
+ϕxyt = angle.(full_field)
+
+using GLMakie
+
+scene = GLMakie.volume(t.*1e15, x.*20, y.*20, Exyt, algorithm = :iso, isorange = 0.1, isovalue = maximum(Exyt[50,:,:])*0.7)
+GLMakie.volume!(t.*1e15, x.*20, y.*20, Exyt, algorithm = :iso, isorange = 0.1, isovalue = minimum(Exyt[50,:,:])*0.7)
+#scene = GLMakie.volume(t.*1e15, x.*20, y.*20, Ixyt, colormap = :inferno, algorithm = :iso, isorange = 0.1, isovalue = maximum(Ixyt[50,:,:])*0.7)
+display(scene)
+=#
+
+
+#=
+
+# To visualize beam and pump spatial profiles
 
 @unpack E0_p, A, ηc, ηq, w_xp, w_yp, w_xs, w_ys, N, x, y = fn_params
 w_xp = 800e-6 # at tube window
@@ -157,8 +178,6 @@ seed = Gaussian(fn_params, 1050e-6, 1050e-6)
 Ein0 = 1.2e-3
 Jin0 = Ein0 / calcAeff(x, y, seed)
 seed .*= Jin0
-
-# Plots
 
 using CairoMakie
 

@@ -42,7 +42,7 @@
     τ::T = τs * √(1+(4log(2)*GDD/(τs^2))^2) # Real pulse duration
 
     # Grid size
-    N::Int = 200
+    N::Int = 100
     pass::Int = 13
     xmin::T = 0
     ymin::T = 0

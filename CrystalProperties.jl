@@ -49,6 +49,16 @@ sapphire = SapphireSellmeier()
     C3::Float64 = 0
 end
 
+#=
+#BBO stuff (need to wrap this in functions TODO)
+no(λ) = sqrt(2.7405 + ((0.0184) / ((λ*1e6)^2 - 0.0179)) - (0.0155 * (λ*1e6)^2))
+ne(λ) = sqrt(2.3730 + ((0.0128) / ((λ*1e6)^2 - 0.0156)) - (0.0044 * (λ*1e6)^2))
+dnodλ(λ) = ForwardDiff.derivative.(no, λ)
+dnedλ(λ) = ForwardDiff.derivative.(ne, λ)
+βo1(λ) = (c ./ (no(λ) .- ((λ) .* dnodλ(λ))))^-1 # Group Delay
+βe1(λ) = (c ./ (ne(λ) .- ((λ) .* dnedλ(λ))))^-1 # Group Delay
+=#
+
 # Refractive index of Sapphire based on Sellmeier equation & tabulated coefficients (refractiveindex.info)
 function SaphRefractiveIndex(sapphire::SapphireSellmeier)
     @unpack B1, B2, B3, C1, C2, C3 = sapphire
@@ -100,6 +110,8 @@ function SaphKerrRefractiveIndex(n2CSV::String)
     n2(λ) = 1e-20 .* spl3(λ) # (m^2/W)
     return n2
 end
+
+
 
 # Visualization of cross-sections and spectral phases
 
