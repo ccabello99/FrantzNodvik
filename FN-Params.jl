@@ -1,5 +1,21 @@
 # (SI units for all quantities)
 
+function FWHM(X, Y)
+    half_max = maximum(Y) / 2
+    d = sign.(half_max .- Y[1:end-1]) .- sign.(half_max .- Y[2:end])
+    left_idx = findfirst(d .> 0)
+    right_idx = findlast(d .< 0)
+    return X[right_idx] - X[left_idx]
+end
+
+function e2(X, Y)
+    threshold = maximum(Y) / exp(2)
+    d = sign.(threshold .- Y[1:end-1]) .- sign.(threshold .- Y[2:end])
+    left_idx = findfirst(d .> 0)
+    right_idx = findlast(d .< 0)
+    return X[right_idx] - X[left_idx]
+end
+
 @with_kw mutable struct FN_Params{T}
 
     # Physical constants
@@ -42,25 +58,22 @@
     τ::T = τs * √(1+(4log(2)*GDD/(τs^2))^2) # Real pulse duration
 
     # Grid size
-    N::Int = 100
+    N::Int = 2^8 + 1
     pass::Int = 13
-    xmin::T = 0
-    ymin::T = 0
-    zmin::T = 0
-    xmax::T = 80e-4
-    ymax::T = 80e-4
-    zmax::T = 8e-3
+    xmax::T = 40e-3
+    ymax::T = 40e-3
+    zmax::T = 40e-6
     dx::T = xmax / N
     dy::T = ymax / N
     dz::T = zmax / N
     Npass::Vector{T} = collect(0:pass-1)
 
     # Spatial domain
-    x::Vector{T} = collect(range(xmin, xmax, N))
-    y::Vector{T} = collect(range(ymin, ymax, N))
-    z::Vector{T} = collect(range(zmin, zmax, N))
-    x0::T = xmax / 2
-    y0::T = ymax / 2
+    x::Vector{T} = collect(range(-xmax/2, xmax/2, N))
+    y::Vector{T} = collect(range(-ymax/2, ymax/2, N))
+    z::Vector{T} = collect(range(-zmax/2, zmax/2, N))
+    x0::T = 0
+    y0::T = 0
 
     # Time domain
     nt::Int = 2^12
@@ -68,7 +81,7 @@
     tmax::T = 4 * τ
     dt::T = tmax / nt
     t::Vector{T} = collect(LinRange(-nt/2, nt/2, nt) .* dt)
-    t0::T = tmax / 2
+    t0::T = 0
 
     # Frequency domain
     fs::T = 1 / dt

@@ -10,33 +10,30 @@ function LaguerreGauss(params::FN_Params, P::Int, L::Int, A::Real, W::Real)
     # Laguerre-Gauss equation: 
     # (ref: N. Hodgson, 'Laser Resonators and Beam Propagation'.(Pg 222)) 
 
-    @unpack N, dx, dy, x0, y0 = params
+    @unpack N, x, y, x0, y0 = params
     
-    t = zeros(N, N)
-    Phi = zeros(N, N)
-    Term1 = zeros(N, N)
+    t = zeros(Float64, N, N)
+    Phi = zeros(Float64, N, N)
+    Term1 = zeros(Float64, N, N)
+    Z = zeros(ComplexF64, N, N)
     W2 = W^2
-    sqrt2 = sqrt(2)
     
-    
-    ThreadsX.foreach(CartesianIndices((N, N)); simd=true) do I
-        x = I[1] * dx
-        y = I[2] * dy
-        x_diff = x - x0
-        y_diff = y - y0
-        x_diff2 = x_diff^2
-        y_diff2 = y_diff^2
-        
-        @inbounds t[I] = -(2 * x_diff2 / W2) - 2 * y_diff2 / W2
-        @inbounds Phi[I] = L * atan(y_diff, x_diff)
-        @inbounds Term1[I] = (sqrt2 * sqrt(x_diff2 + y_diff2))^L
-    end
-        
+    X, Y = meshgrid(x, y)
+
+    x_diff = X .- x0
+    y_diff = Y .- y0
+    x_diff2 = x_diff.^2
+    y_diff2 = y_diff.^2
+
+            
+    t .= -(x_diff2 ./ (2 .* W2)) .- (y_diff2 ./ (2 .* W2))
+    Phi .= L .* atan.(y_diff, x_diff)
+    Term1 .= (sqrt(2) .* sqrt.(x_diff2 .+ y_diff2)).^L
     C = A * sqrt(2*factorial(P)/(π*factorial(P+abs(L))))
     Term2 = laguerrel.(P, L, 2 .* t)
     Term3 = exp.(t)
     Term4 = exp.(1im .* Phi)
-    Z = C .* (1 / W) .* Term1 .* Term2 .* Term3 .* Term4
+    Z .= C .* (1 / W) .* Term1 .* Term2 .* Term3 .* Term4
 
     return Z
 end
@@ -45,20 +42,19 @@ end
 # wx and wy are the beam diameter along x and y direction
 function Gaussian(params::FN_Params, wx::Real, wy::Real)
 
-    @unpack N, dx, dy, x0, y0 = params
+    @unpack N, x, y, x0, y0 = params
 
     gauss = zeros(N, N)
     wx2 = wx^2
     wy2 = wy^2
 
-    ThreadsX.foreach(CartesianIndices((N, N)); simd=true) do I
-        x = I[1] * dx
-        y = I[2] * dy
-        x_diff = x - x0
-        y_diff = y - y0
+    X, Y = meshgrid(x, y)
+    x_diff = X .- x0
+    y_diff = Y .- y0
+    x_diff2 = x_diff.^2
+    y_diff2 = y_diff.^2
 
-        @inbounds gauss[I] = exp(-2 * (x_diff^2 / wx2) - 2 * (y_diff^2 / wy2))
-    end
+    gauss .= exp.(-(x_diff2 ./ (2*wx2)) .- (y_diff2 ./ (2*wy2)))
 
     return gauss
 
@@ -72,15 +68,13 @@ function SuperGaussian(params::FN_Params, w::Real, nsg::Int)
     super_gaussian = zeros(N, N)
     w2 = w^2
 
-    ThreadsX.foreach(CartesianIndices((N, N)); simd=true) do I
-        x = I[1] * dx
-        y = I[2] * dy
-        x_diff = x - x0
-        y_diff = y - y0
+    X, Y = meshgrid(x, y)
+    x_diff = X .- x0
+    y_diff = Y .- y0
+    x_diff2 = x_diff.^2
+    y_diff2 = y_diff.^2
 
-        @inbounds super_gaussian[I] = exp(-2 * ((x_diff^2 + y_diff^2) / w2)^nsg)
-    end
-
+    super_gaussian .= exp.(-(x_diff2 .+ y_diff2) ./ (2 .* w2).^(2*nsg))
 
     return super_gaussian
 
@@ -88,7 +82,7 @@ end
 
 function calcAeff(x::Vector, y::Vector, J::Matrix)
 
-    Aeff = (NumericalIntegration.integrate((x,y), J)).^2 / NumericalIntegration.integrate((x,y), J.^2)
+    Aeff = ((NumericalIntegration.integrate((x,y), J)).^2) / (NumericalIntegration.integrate((x,y), J.^2))
 
     return Aeff
 end
@@ -101,129 +95,64 @@ function ComplexEnvelope(A0::Real, t0::Real, ϕ::Real, τ::Real, GDD::Real)
     return A
 end
 
+function Gauss3D(fn_params::FN_Params, w0::Real)
 
-println("EM-Field.jl compiled")
+    @unpack x, y, z, x0, y0,dx, dy, N, λs = fn_params
 
-#=
+    k = 2π/λs
+    zR = π * w0^2 / λs
+    w(zz) = w0 .* sqrt.(1 .+ (zz ./ zR).^2)
+    R(zz) = zz .* (1 .+ (zR ./ zz)^2)
+    E0 = zeros(ComplexF64, N, N, N) 
 
-# To visualize LG-modes (spatio-temporally if wanted)
+    lk = Threads.ReentrantLock()
 
-N = 100
-xmax = 20e-4
-ymax = xmax
-dx = xmax / N
-dy = dx
+    ThreadsX.foreach(CartesianIndices((N, N, N)); simd=true) do I
+        xx = I[1] * dx
+        yy = I[2] * dy
+        x_diff = xx - x0
+        y_diff = yy - y0
+        x_diff2 = x_diff^2
+        y_diff2 = y_diff^2
+        ϕ = atan(z[I[3]]/zR)
 
-x = range(0, xmax, N) .* 1e3
-y = range(0, ymax, N) .* 1e3
-z = range(0, xmax, N) .* 1e3
-x0 = xmax / 2
-y0 = ymax / 2
+        lock(lk) do
+            E0[I] = Gaussian(fn_params, w(z[I[3]]), w(z[I[3]]))[I[1], I[2]] .* exp.(1im .* ((x_diff2 ./ (2 .* R(z[I[3]])))) .+ (y_diff2 ./ (2 .* R(z[I[3]])))) .* exp.(1im .* (k .* z[I[3]] - ϕ))
+        end
+    end
 
-p = 0
-l = 1
-a = 1
-w = 2000e-6
-
-# Laguerre-Gaussian spatial properties
-Z = LaguerreGauss(fn_params, p, l, a, w)
-
-E = real.(Z)
-ϕ = angle.(Z)
-Ixy = abs.(Z)
-
-scale = sqrt(1/(-2*log(0.5)))*sqrt(1/2)
-t = collect(range(-30e-15,30e-15,N))
-At = ComplexEnvelope(1, 0, 0, 30e-15*scale, 0)
-A_t = At.(t)
-ω = 2.998e8*2π/800e-9
-
-full_field = zeros(ComplexF64, N, N, N)
-
-for I in CartesianIndices((N, N, N))
-    i, j, k = (I[1], I[2], I[3])
-    full_field[i, j, k] = Z[j, k] * exp(1im * ω * t[i]) * A_t[i]
+    return E0
 end
 
-Exyt = real.(full_field)
-Ixyt = abs.(full_field)    
-ϕxyt = angle.(full_field)
+function LG3D(fn_params::FN_Params, w0::Real, p::Int, l::Int)
 
-using GLMakie
+    @unpack x, y, z, x0, y0, dx, dy, N, λs = fn_params
 
-scene = GLMakie.volume(t.*1e15, x.*20, y.*20, Exyt, algorithm = :iso, isorange = 0.1, isovalue = maximum(Exyt[50,:,:])*0.7)
-GLMakie.volume!(t.*1e15, x.*20, y.*20, Exyt, algorithm = :iso, isorange = 0.1, isovalue = minimum(Exyt[50,:,:])*0.7)
-#scene = GLMakie.volume(t.*1e15, x.*20, y.*20, Ixyt, colormap = :inferno, algorithm = :iso, isorange = 0.1, isovalue = maximum(Ixyt[50,:,:])*0.7)
-display(scene)
-=#
+    k = 2π/λs
+    zR = π * w0^2 / λs
+    w(zz) = w0 .* sqrt.(1 .+ (zz ./ zR).^2)
+    R(zz) = zz .* (1 .+ (zR ./ zz)^2)
+    E0 = zeros(ComplexF64, N, N, N) 
 
+    lk = Threads.ReentrantLock()
 
-#=
+    ThreadsX.foreach(CartesianIndices((N, N, N)); simd=true) do I
+        xx = I[1] * dx
+        yy = I[2] * dy
+        x_diff = xx - x0
+        y_diff = yy - y0
+        x_diff2 = x_diff^2
+        y_diff2 = y_diff^2
+        ϕ = (2*p + abs(l) + 1)*atan(z[I[3]]/zR)
 
-# To visualize beam and pump spatial profiles
+        lock(lk) do
+            E0[I] = w0 .* (sqrt(x_diff2 + y_diff2)*sqrt(2)/w(z[I[3]]))^(abs(l)) .* LaguerreGauss(fn_params, 0, 1, 1, w(z[I[3]]))[I[1], I[2]] .* exp.(1im .* ((x_diff2 ./ (2 .* R(z[I[3]])))) .+ (y_diff2 ./ (2 .* R(z[I[3]])))) .* exp.(1im .* (k .* z[I[3]] - ϕ))
+        end
+    end
 
-@unpack E0_p, A, ηc, ηq, w_xp, w_yp, w_xs, w_ys, N, x, y = fn_params
-w_xp = 800e-6 # at tube window
-supergauss = SuperGaussian(fn_params, w_xp, 6)
-scale = NumericalIntegration.integrate((x,y), Gaussian(fn_params, w_xp, w_yp)) / NumericalIntegration.integrate((x,y), supergauss)
-Jsto = scale .* supergauss
-Eabs = ((E0_p) * (A * ηc * ηq)) * (2 - (A * ηc * ηq))
-Aeff_p = calcAeff(x, y, Jsto)
-Jsto0 = Eabs / Aeff_p
-Jsto = Jsto0 .* Jsto
-scaleJsto = Eabs / NumericalIntegration.integrate((x,y), Jsto)
-Jsto = scaleJsto * Jsto
+    return E0
 
-seed = Gaussian(fn_params, 1050e-6, 1050e-6)
-Ein0 = 1.2e-3
-Jin0 = Ein0 / calcAeff(x, y, seed)
-seed .*= Jin0
-
-using CairoMakie
-
-fig = Figure(fontsize = 48, size=(1920, 1080))
-
-#=
-ax1 = Axis(fig[1, 1], 
-	xlabel = L"\textbf{x (mm)}", ylabel = L"\textbf{y (mm)}",
-	title = L"\textbf{LG}_{1, 0} \textbf{Intensity Profile}",
-	ylabelpadding = 20)
-=#
+end
 
 
-ax1 = Axis(fig[1, 1], limits=(2, 6, 2, 6),
-	xlabel = L"\textbf{x (mm)}", ylabel = L"\textbf{y (mm)}",
-	title = L"\textbf{Pump Beam Fluence Profile}",
-	ylabelpadding = 20)
-ax2 = Axis(fig[1, 3], limits=(2, 6, 2, 6),
-	xlabel = L"\textbf{x (mm)}", ylabel = L"\textbf{y (mm)}",
-	title = L"\textbf{Seed Beam Fluence Profile}",
-	ylabelpadding = 20)
-
-#=
-ax1 = Axis(fig[1, 1], limits=(2, 6, 2, 6),
-	xlabel = L"\textbf{x (mm)}", ylabel = L"\textbf{y (mm)}",
-	title = L"\textbf{Seed Beam Fluence Profile}",
-	ylabelpadding = 20)
-=#
-#=
-ax2 = Axis(fig[1, 1],
-	xlabel = L"\textbf{x (mm)}", ylabel = L"\textbf{y (mm)}",
-	title = L"\textbf{LG}_{1, 0} \textbf{ Phase Profile}",
-	ylabelpadding = 20)
-=#
-
-hm1 = CairoMakie.heatmap!(ax1, x .* 1e3, y .* 1e3, Jsto ./ maximum(Jsto), colormap = :inferno) #vikO100
-hm2 = CairoMakie.heatmap!(ax2, x .* 1e3, y .* 1e3, seed ./ maximum(seed), colormap = :inferno) #vikO100
-#hm2 = CairoMakie.heatmap!(ax2, x .* 1e3, y .* 1e3, (Jsto ./ maximum(Jsto)) .- (seed  ./ maximum(seed)), colormap = :inferno) #vikO100
-cb = CairoMakie.Colorbar(fig[1, 2], hm1, size=20,)
-cb = CairoMakie.Colorbar(fig[1, 4], hm2, size=20)
-
-#hm = CairoMakie.heatmap!(ax1, x .* 1e3, y .* 1e3, Ixy, colormap = :vikO100)
-#cb = CairoMakie.Colorbar(fig[1, 2], hm, size=20, label=L"\textbf{Normalized Intensity (arb. u)}")
-#hm = CairoMakie.heatmap!(ax2, x, y, ϕ, colormap = :jet)
-#cb = CairoMakie.Colorbar(fig[1, 2], hm, size=20, ticks=([-3.13, 0, 3.14], [L"-\pi", L"0", L"\pi"]))
-
-fig
-
-=#
+println("EM-Field.jl compiled")

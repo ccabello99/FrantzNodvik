@@ -8,7 +8,7 @@ function createFluenceArrays(fn_params::FN_Params, w_xs, w_ys, w_xp)
     Jin = Gaussian(fn_params, w_xs, w_ys)
     Jout = zeros(type, N, N)
 
-    n_sg = 6
+    n_sg = 3
     supergauss = SuperGaussian(fn_params, w_xp, n_sg)
     gaussian_p = Gaussian(fn_params, w_xp, w_xp)
     scale = NumericalIntegration.integrate((x,y), gaussian_p) / NumericalIntegration.integrate((x,y), supergauss)
@@ -31,7 +31,7 @@ function createIntensityArray(A::Function, p::Int, t::Vector, Jin0::Number)
 
 end
 
-function createPassArrays(fn_params::FN_Params, I::Matrix, dgt::Number, Jin::Matrix, Jsto::Matrix)
+function createPassArrays(fn_params::FN_Params, I::Matrix, t::Vector, Jin::Matrix, Jsto::Matrix)
 
     @unpack pass, x, y = fn_params
 
@@ -39,7 +39,7 @@ function createPassArrays(fn_params::FN_Params, I::Matrix, dgt::Number, Jin::Mat
     Esto = zeros(pass)
     B = zeros(pass)
     extraction = zeros(pass)
-    Epass[1] = NumericalIntegration.integrate((x,y), sum(I[1, :] * dgt) .* Jin)
+    Epass[1] = NumericalIntegration.integrate((x,y), NumericalIntegration.integrate(t, I[1, :]) .* Jin)
     Esto[1] = NumericalIntegration.integrate((x,y), Jsto)
     B[1] = 0
     extraction[1] = 0
@@ -89,7 +89,7 @@ end
 
 function one_pass(fn_params::FN_Params, fft_plan, gabor::Gabor, Jin::Matrix, Jin0::Number, Jsto::Matrix, At::Vector, 
                     Jsat::Function, Epass::Vector, Esto::Vector, B::Vector, It::Matrix, Aeffs::Vector, extraction::Vector, 
-                        profile::String, p::Int, w, w_xs, w_ys, n2::Function; visualize=false)
+                        profile::String, p::Int, stop::Int, w::Real, w_xs::Real, w_ys::Real, n2::Function; visualize=false)
 
     type = typeof(Jin0)
     J_in = similar(Jin)
@@ -103,14 +103,11 @@ function one_pass(fn_params::FN_Params, fft_plan, gabor::Gabor, Jin::Matrix, Jin
     Isav = similar(It[1,:])
     λ = zeros(1)
 
-    @unpack τ, λs, x, y, z, N, t, start, stop = fn_params
+    @unpack τ, c, λs, x, y, z, N, t, start = fn_params
     @unpack tslide, ng = gabor
     dgt = tslide[2] - tslide[1]
     f = 2π*1e13
     At_g = At.*exp.(-1im*f.*t)
-
-    display(heatmap(Jin))
-    sleep(3)
 
     for t in 1:ng
         λ .= instWavelength(gabor, At_g, t, λ, fn_params, fft_plan)
@@ -126,7 +123,7 @@ function one_pass(fn_params::FN_Params, fft_plan, gabor::Gabor, Jin::Matrix, Jin
         Epass[p] += Eout
         Jsto .-= (J_out .- J_in)
         if visualize && t%5 == 0
-            #display(heatmap(x.*1e3, y.*1e3, Jsto.*1e-4, clims=(0, maximum(Jsto).*1e-4), xlabel="x (mm)", ylabel="y (mm)", clabel="Stored Fluence (J/cm^2)", title="Stored Fluence (J/cm^2) during pass # " * string(p-1) * " at " *  @sprintf("%.1f", t .* dgt*1e12) * " ps"))
+            display(heatmap(x.*1e3, y.*1e3, Jsto.*1e-4, clims=(0, maximum(Jsto).*1e-4), xlabel="x (mm)", ylabel="y (mm)", clabel="Stored Fluence (J/cm^2)", title="Stored Fluence (J/cm^2) during pass # " * string(p-1) * " at " *  @sprintf("%.1f", t .* dgt*1e12) * " ps"))
             #display(heatmap(x.*1e3, y.*1e3, Jinn.*1e-4, ylims = (2, 6), xlims=(2,6), clims=(0, Jin0.*1e-4), xlabel="x (mm)", ylabel="y (mm)", clabel="Input Fluence (J/cm^2)", title="Input Fluence (J/cm^2) during pass # " * string(p-1) * " at " * @sprintf("%.1f", t .* dgt*1e12) * " ps"))
             #display(heatmap(x.*1e3, y.*1e3, G0, clims=(0, maximum(G0)), xlabel="x (mm)", ylabel="y (mm)", clabel="Gain", title="Gain during pass # " * string(p-1) * " at " * @sprintf("%.1f", t .* dgt*1e12) * " ps"))
             #savefig("Jsto_t"*string(t)*".png")
@@ -147,11 +144,9 @@ function one_pass(fn_params::FN_Params, fft_plan, gabor::Gabor, Jin::Matrix, Jin
     
 
     Ppeak = (0.94 * Epass[p] / τ) .* Isav
-    ϕmax = 2π/λs * NumericalIntegration.integrate(z, n2(λs) * (Ppeak / Aeff_s), SimpsonEven())
+    ϕmax = 2π/λs * NumericalIntegration.integrate(c.*z, n2(λs) * (Ppeak / Aeff_s), SimpsonEven())
     B[p] = B[p-1] + 2 * ϕmax
 
-    display(heatmap(Jin))
-    sleep(3)
     if profile == "gauss"
         Jin = ifelse(p < stop, Gaussian(fn_params, w_xs, w_ys), Gaussian(fn_params, w, w))
         Jin, scaling = conserveEnergy(Jout, Aeff_s, tslide, It, p, dgt, Jin, x, y)
@@ -163,9 +158,6 @@ function one_pass(fn_params::FN_Params, fft_plan, gabor::Gabor, Jin::Matrix, Jin
 
     Jin .*= 0.95
 
-    display(heatmap(Jin))
-    sleep(3)
-
     return Jin, Jin0, Jout, Jsto, Epass, Esto, B, It, Aeffs, extraction
 
 end
@@ -174,12 +166,12 @@ end
 
 function several_passes(fn_params::FN_Params, fft_plan, gabor::Gabor, start::Int, stop::Int, Jin::Matrix, Jin0::Number, Jout::Matrix, Jsto::Matrix, At::Vector,
                         Jsat::Function, Epass::Vector, Esto::Vector, B::Vector, It::Matrix, Aeffs::Vector, extraction::Vector, 
-                                profile::String, w, w_xs, w_ys, n2::Function, visualize::Bool)
+                                profile::String, w::Real, w_xs::Real, w_ys::Real, n2::Function, visualize::Bool)
 
     prof = profile == "gauss" ? "gauss" : "LG"
 
     for p in start:stop
-        Jin, Jin0, Jout, Jsto, Epass, Esto, B, It = one_pass(fn_params, fft_plan, gabor, Jin, Jin0, Jsto, At, Jsat, Epass, Esto, B, It, Aeffs, extraction, prof, p, w, w_xs, w_ys, n2; visualize)
+        Jin, Jin0, Jout, Jsto, Epass, Esto, B, It = one_pass(fn_params, fft_plan, gabor, Jin, Jin0, Jsto, At, Jsat, Epass, Esto, B, It, Aeffs, extraction, prof, p, stop, w, w_xs, w_ys, n2; visualize)
     end
 
     return Jin, Jin0, Jout, Jsto, Epass, Esto, B, It, Aeffs, extraction

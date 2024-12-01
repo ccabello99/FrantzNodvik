@@ -15,9 +15,9 @@ end
 
 
 function Gabor(fn_params::FN_Params)
-    @unpack t, nt, τ = fn_params
+    @unpack N, t, nt, τ = fn_params
     type = typeof(τ)
-    ng = 200
+    ng = N
     Xgt_spec = zeros(type, ng, nt)
     g = zeros(type, nt)
     gt = zeros(type, nt)
