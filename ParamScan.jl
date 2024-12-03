@@ -8,6 +8,7 @@ include("CrystalProperties.jl")
 include("EM-Field.jl")
 include("Passes.jl")
 include("Diffraction.jl")
+include("Helpers.jl")
 
 
 function ParamScan(fn_param::FN_Params, w_init::Real, w_exp::Real, wp_init::Real, Ep_init::Real, Ein_init::Real, steps::Int, LG::Bool, visualize::Bool)
@@ -139,16 +140,16 @@ function ParamScan(fn_param::FN_Params, w_init::Real, w_exp::Real, wp_init::Real
         if LG
         # Transform into expanded Laguerre-Gaussian beam profile
             prof = profiles[2]
-            Jin = abs.(LaguerreGauss(fn_params, P, L, a, w))
+            Jin = abs2.(LaguerreGauss(fn_params, P, L, a, w))
         else
         # Transform into expanded Gaussian beam profile
             prof = profiles[1]
-            Jin = Gaussian(fn_param, w, w)
+            Jin = abs2.(Gaussian(fn_param, w, w))
         end
 
         # Calculate new fluence
         Aeff_s = calcAeff(x, y, Jin)
-        Jin0 = Epass[stop] / Aeff_s
+        Jin0 = 2 * Epass[stop] / Aeff_s
 
         # Properly scale to conserve energy according to new beam profile
         Jin, scaling = conserveEnergy(Jout, Aeff_s, tslide, It, stop, dgt, Jin, x, y)

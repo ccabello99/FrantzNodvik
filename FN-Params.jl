@@ -1,21 +1,5 @@
 # (SI units for all quantities)
 
-function FWHM(X, Y)
-    half_max = maximum(Y) / 2
-    d = sign.(half_max .- Y[1:end-1]) .- sign.(half_max .- Y[2:end])
-    left_idx = findfirst(d .> 0)
-    right_idx = findlast(d .< 0)
-    return X[right_idx] - X[left_idx]
-end
-
-function e2(X, Y)
-    threshold = maximum(Y) / exp(2)
-    d = sign.(threshold .- Y[1:end-1]) .- sign.(threshold .- Y[2:end])
-    left_idx = findfirst(d .> 0)
-    right_idx = findlast(d .< 0)
-    return X[right_idx] - X[left_idx]
-end
-
 @with_kw mutable struct FN_Params{T}
 
     # Physical constants
@@ -23,10 +7,11 @@ end
     c::T = 2.998e8
     kb::T = 1.38e-23
     λp::T = 527e-9
-    λs::T = 785e-9
+    λs::T = 488e-9
     ωs::T = 2π * c / λs 
     ωp::T = 2π * c / λp
     frep::T = 1e3
+    Ein::T = 2.5e-3
 
     # Crystal Parameters
     α::T = 1.92e2 
@@ -60,8 +45,8 @@ end
     # Grid size
     N::Int = 2^8 + 1
     pass::Int = 13
-    xmax::T = 40e-3
-    ymax::T = 40e-3
+    xmax::T = 8e-3
+    ymax::T = 8e-3
     zmax::T = 40e-6
     dx::T = xmax / N
     dy::T = ymax / N

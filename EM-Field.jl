@@ -26,7 +26,7 @@ function LaguerreGauss(params::FN_Params, P::Int, L::Int, A::Real, W::Real)
     y_diff2 = y_diff.^2
 
             
-    t .= -(x_diff2 ./ (2 .* W2)) .- (y_diff2 ./ (2 .* W2))
+    t .= -(x_diff2 ./ (W2)) .- (y_diff2 ./ (W2))
     Phi .= L .* atan.(y_diff, x_diff)
     Term1 .= (sqrt(2) .* sqrt.(x_diff2 .+ y_diff2)).^L
     C = A * sqrt(2*factorial(P)/(π*factorial(P+abs(L))))
@@ -54,7 +54,7 @@ function Gaussian(params::FN_Params, wx::Real, wy::Real)
     x_diff2 = x_diff.^2
     y_diff2 = y_diff.^2
 
-    gauss .= exp.(-(x_diff2 ./ (2*wx2)) .- (y_diff2 ./ (2*wy2)))
+    gauss .= exp.(-(x_diff2 ./ (wx2)) .- (y_diff2 ./ (wy2)))
 
     return gauss
 
@@ -74,7 +74,7 @@ function SuperGaussian(params::FN_Params, w::Real, nsg::Int)
     x_diff2 = x_diff.^2
     y_diff2 = y_diff.^2
 
-    super_gaussian .= exp.(-(x_diff2 .+ y_diff2) ./ (2 .* w2).^(2*nsg))
+    super_gaussian .= exp.(-(x_diff2 .+ y_diff2) ./ (w2).^(2*nsg))
 
     return super_gaussian
 

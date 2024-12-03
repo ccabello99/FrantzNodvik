@@ -5,12 +5,12 @@ function createFluenceArrays(fn_params::FN_Params, w_xs, w_ys, w_xp)
     @unpack x0, y0, N, x, y = fn_params
 
     type = typeof(x0)
-    Jin = Gaussian(fn_params, w_xs, w_ys)
+    Jin = abs2.(Gaussian(fn_params, w_xs, w_ys))
     Jout = zeros(type, N, N)
 
     n_sg = 3
-    supergauss = SuperGaussian(fn_params, w_xp, n_sg)
-    gaussian_p = Gaussian(fn_params, w_xp, w_xp)
+    supergauss = abs2.(SuperGaussian(fn_params, w_xp, n_sg))
+    gaussian_p = abs2.(Gaussian(fn_params, w_xp, w_xp))
     scale = NumericalIntegration.integrate((x,y), gaussian_p) / NumericalIntegration.integrate((x,y), supergauss)
     Jsto = scale .* supergauss
     
@@ -51,7 +51,7 @@ end
 function conserveEnergy(Jout::Matrix, Aeff::Number, tslide::Vector, It::Matrix, p::Int, dgt::Number, J::Matrix, x::Vector, y::Vector)
 
     Ein0 = NumericalIntegration.integrate((x,y), Jout)
-    Jin0 = (Ein0) / Aeff
+    Jin0 = (2 * Ein0) / Aeff
     I0 = Jin0 / NumericalIntegration.integrate(tslide, It[p,:] ./ maximum(It[p,:]))
     It[p,:] .*= I0 ./ maximum(It[p,:])
     newEin0 = NumericalIntegration.integrate((x,y), sum(It[p, :] * dgt) .* J)
@@ -136,7 +136,7 @@ function one_pass(fn_params::FN_Params, fft_plan, gabor::Gabor, Jin::Matrix, Jin
     Aeffs[p] = Aeff_s
 
     Isav ./= maximum(Isav) 
-    Jin0 = (Epass[p]) / Aeff_s
+    Jin0 = (2 * Epass[p]) / Aeff_s
     I0 = Jin0 / NumericalIntegration.integrate(tslide, Isav)
     It[p,:] .= I0 .* Isav
 
@@ -144,15 +144,15 @@ function one_pass(fn_params::FN_Params, fft_plan, gabor::Gabor, Jin::Matrix, Jin
     
 
     Ppeak = (0.94 * Epass[p] / τ) .* Isav
-    ϕmax = 2π/λs * NumericalIntegration.integrate(c.*z, n2(λs) * (Ppeak / Aeff_s), SimpsonEven())
+    ϕmax = 2π/λs * NumericalIntegration.integrate(c.*z, n2(λs) * (2 * Ppeak / Aeff_s), SimpsonEven())
     B[p] = B[p-1] + 2 * ϕmax
 
     if profile == "gauss"
-        Jin = ifelse(p < stop, Gaussian(fn_params, w_xs, w_ys), Gaussian(fn_params, w, w))
+        Jin = ifelse(p < stop, abs2.(Gaussian(fn_params, w_xs, w_ys)), abs2.(Gaussian(fn_params, w, w)))
         Jin, scaling = conserveEnergy(Jout, Aeff_s, tslide, It, p, dgt, Jin, x, y)
     elseif profile == "LG"
         P, L, a = 0, 1, 1
-        Jin = abs.(LaguerreGauss(fn_params, P, L, a, w))
+        Jin = abs2.(LaguerreGauss(fn_params, P, L, a, w))
         Jin, scaling = conserveEnergy(Jout, Aeff_s, tslide, It, p, dgt, Jin, x, y)
     end
 
