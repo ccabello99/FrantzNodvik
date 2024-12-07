@@ -5,7 +5,7 @@ function meshgrid(x::Vector, y::Vector)
     return X, Y
 end
 
-function LaguerreGauss(params::FN_Params, P::Int, L::Int, A::Real, W::Real)
+function LaguerreGauss(params::FN_Params, P::Int, L::Real, A::Real, W::Real)
     
     # Laguerre-Gauss equation: 
     # (ref: N. Hodgson, 'Laser Resonators and Beam Propagation'.(Pg 222)) 
@@ -29,8 +29,8 @@ function LaguerreGauss(params::FN_Params, P::Int, L::Int, A::Real, W::Real)
     t .= -(x_diff2 ./ (W2)) .- (y_diff2 ./ (W2))
     Phi .= L .* atan.(y_diff, x_diff)
     Term1 .= (sqrt(2) .* sqrt.(x_diff2 .+ y_diff2)).^L
-    C = A * sqrt(2*factorial(P)/(π*factorial(P+abs(L))))
-    Term2 = laguerrel.(P, L, 2 .* t)
+    C = A * sqrt(2 * factorial(P) / (π*gamma(P + abs(L) + 1)))
+    Term2 = laguerrel.(P, L, t)
     Term3 = exp.(t)
     Term4 = exp.(1im .* Phi)
     Z .= C .* (1 / W) .* Term1 .* Term2 .* Term3 .* Term4

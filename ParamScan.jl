@@ -1,6 +1,6 @@
 using CSV, Tables, DataFrames, Printf, JLD, Plots
 using LinearAlgebra, FFTW, ForwardDiff, NumericalIntegration, DSP
-using ThreadsX, Parameters, Dierckx, ClassicalOrthogonalPolynomials
+using ThreadsX, Parameters, Dierckx, ClassicalOrthogonalPolynomials, SpecialFunctions
 
 include("FN-Params.jl")
 include("Gabor.jl")

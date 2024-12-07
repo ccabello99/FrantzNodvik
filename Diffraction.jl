@@ -61,13 +61,11 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     sinϕ = sin.(ϕ)
 
     Ex = zeros(ComplexF64, N, N)
-    Ey = similar(Ex)
+    Ey = zeros(ComplexF64, N, N)
 
     if Pol == "P"
         Ex .= Gaussian(fn_params, w, w)
-        Ey .= zeros(N, N)
     elseif Pol == "S"
-        Ex .= zeros(N, N)
         Ey .= Gaussian(fn_params, w, w)
     elseif Pol == "D"
         Ex .= Gaussian(fn_params, w, w) ./ sqrt(2)
@@ -87,6 +85,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     end
 
     scaleField!(x, y, Ex, Ey, Ein)
+    rp, rs = FresnelCoefficients(28)
 
     # Print some useful info about initial field
     if verbose
@@ -96,9 +95,8 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
         w0_x, w0_y = e22D(x, y, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
+        println("Reflection coefficiencts are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
-
-    rp, rs = FresnelCoefficients(28)
 
     M00 = rp .* cosϕ.^2 .* cosθ .+ rs .* sinϕ.^2
     M01 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
@@ -117,7 +115,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 end
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, 
-                        Pol::String, l::Int; verbose=false)
+                        Pol::String, l::Real; verbose=false)
     @unpack N, x, y = fn_params
     @unpack w, θ, ϕ, Ein = diff_params
 
@@ -127,13 +125,11 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     sinϕ = sin.(ϕ)
 
     Ex = zeros(ComplexF64, N, N)
-    Ey = similar(Ex)
+    Ey = zeros(ComplexF64, N, N)
 
     if Pol == "P"
         Ex .= LaguerreGauss(fn_params, 0, l, 1, w)
-        Ey .= zeros(N, N)
     elseif Pol == "S"
-        Ex .= zeros(N, N)
         Ey .= LaguerreGauss(fn_params, 0, l, 1, w)
     elseif Pol == "D"
         Ex .= LaguerreGauss(fn_params, 0, l, 1, w) ./ sqrt(2)
@@ -153,6 +149,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     end
 
     scaleField!(x, y, Ex, Ey, Ein)
+    rp, rs = FresnelCoefficients(28)
 
     # Print some useful info about initial field
     if verbose
@@ -163,9 +160,8 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
         w0_x, w0_y = e22D(x, y, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
+        println("Reflection coefficiencts are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
-
-    rp, rs = FresnelCoefficients(28)
 
     M00 = rp .* cosϕ.^2 .* cosθ .+ rs .* sinϕ.^2
     M01 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
@@ -184,10 +180,8 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 end
 
 
-
-
 function TransmissionFunction(fn_params::FN_Params, diff_params::Diffract, 
-                                Pol::String, l::Int; verbose=false)
+                                Pol::String, l::Real; verbose=false)
     @unpack sinθmax, R, aperture, θ, ϕ = diff_params
     @unpack N, x, y = fn_params
     
@@ -228,7 +222,7 @@ function TransmissionFunction(fn_params::FN_Params, diff_params::Diffract,
 end
 
 function RichardsWolf(fn_params::FN_Params, diff_params::Diffract, 
-                        Pol::String, z::Real, l::Int; verbose=false)
+                        Pol::String, z::Real, l::Real; verbose=false)
     @unpack sinθmax, f, R, kt, m, θ = diff_params
     @unpack N, λs, dx, dy = fn_params
 
@@ -246,7 +240,7 @@ function RichardsWolf(fn_params::FN_Params, diff_params::Diffract,
     expz = exp.(1im .* kt .* z .* cosθ)
 
     # For zero-padding
-    M = 2^12
+    M = 2^11
     pad_size = Int(M/2)
     if N % 2 != 0
         n = Int((N-1)/2)
@@ -313,28 +307,28 @@ function RichardsWolf(fn_params::FN_Params, diff_params::Diffract,
 end
 
 function FullSpatialProfile(fn_params::FN_Params, diff_params::Diffract, Pol::String, 
-                                zmin::Real, zmax::Real, zsteps::Int, l::Int)
+                                zmin::Real, zmax::Real, zsteps::Int; l = 0, coeffs = 0)
     @unpack N, λs = fn_params
     @unpack w, nt, kt = diff_params
 
     z = collect(range(zmin, zmax, zsteps))
-
-    # Run once to compile and save x and y vectors
-    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l)
 
     Ex = zeros(ComplexF64, N, N, zsteps)
     Ey = zeros(ComplexF64, N, N, zsteps)
     Ez = zeros(ComplexF64, N, N, zsteps)
 
     zR = π * w^2 * nt / λs
-    
+
+    # Run once to compile and save x and y vectors
+    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l)
+
     foreach(eachindex(z)) do I
         Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[I], l)
-
+    
         # Include Gouy phase
         ψg = (abs(l) + 1)*atan(z[I] / zR)
-
-        # TODO create function to define wavefront curvature
+    
+        # TODO create abberation function
 
         Ex[:, :, I] .= Ef[1] .* exp(1im * ψg)
         Ey[:, :, I] .= Ef[2] .* exp(1im * ψg)
@@ -347,34 +341,29 @@ function FullSpatialProfile(fn_params::FN_Params, diff_params::Diffract, Pol::St
 end
 
 function SpatioTemporalVectorDiffraction(fn_params::FN_Params, diff_params::Diffract, Pol::String, 
-                                            zmin::Real, zmax::Real, zsteps::Int, fsteps::Int, t_now::Real, 
-                                                l::Int; verbose=false)
+                zmin::Real, zmax::Real, zsteps::Int, νsteps::Int, t_now::Real, l::Real; verbose=false)
     @unpack N, t0, ϕ0, τs, τ, ωs, nt, c = fn_params
     @unpack nt, w = diff_params
 
-    # Define temporal profile
-    scale = sqrt(1/(-2*log(0.5))) / sqrt(2)
-    temp = ComplexEnvelope(1, t0, ϕ0, τs * scale, 0)
-    t = collect(range(-3*τ, 3*τ, N))
-    dt = t[2] - t[1]
-    fs = 1/(dt)
-    freq = (fs / N) .* range(-N/2, N/2, N)
-    E_t = temp.(t) .* exp.(1im .* ωs .* t)
-    E_ω = fftshift(fft(fftshift(E_t)))
-
-    # Retrieve spectral profile for sampling
-    spl_re = Spline1D(freq, real.(E_ω), k=3)
-    spl_im = Spline1D(freq, imag.(E_ω), k=3)
-    Eω(ω) = spl_re(ω) + 1im .* spl_im(ω)
-    E_ω = Eω.(freq) ./ maximum(abs.(Eω.(freq)))
-    E_ω = abs.(E_ω)
+    # Define spectral profile
+    Δν = 2 * log(2) / (π * τs)
+    νs = ωs/2π
+    ν = collect(range((νs - 2*Δν), νs + 2*Δν, N))
+    Eν(ν) = exp(-4 * log(2) * (ν - νs)^2 / (Δν^2))
+    E_ν = Eν.(ν)
+    norm = NumericalIntegration.integrate(ν, E_ν)
+    E_ν ./= norm
 
     # Define grid for wavelength sampling
-    fmin = freq[find_first_e2(E_ω, 1e-1)]
-    fmax = freq[find_last_e2(E_ω, 1e-1)]
-    f_samples = collect(range(fmin, fmax, fsteps))
-    dω = (f_samples[2] - f_samples[1]) * 2π
-    λ_samples = collect(c ./ reverse(f_samples))
+    νmin = ν[find_first(E_ν ./ maximum(E_ν), 1e-1, "e2")]
+    νmax = ν[find_last(E_ν ./ maximum(E_ν), 1e-1, "e2")]
+    ν_samples = collect(range(νmin, νmax, νsteps))
+    dν = (ν_samples[2] - ν_samples[1])
+    λ_samples = collect(c ./ reverse(ν_samples))
+
+    # Sampled spectrum + define spectral phase
+    ϕ = 0
+    Eν_samples = Eν.(ν_samples) .* exp.(1im * ϕ) ./ norm
 
     # Run once to compile and save x and y vectors
     Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l)
@@ -400,14 +389,13 @@ function SpatioTemporalVectorDiffraction(fn_params::FN_Params, diff_params::Diff
             ψg = (abs(l) + 1)*atan(z[I] / zR)
 
             # Spectral Contribution
-            ϕ = unwrap(angle.(Eω(f_samples[i])))
-            expω = Eω(f_samples[i]) .* exp(1im * ψg) .* exp.(-1im * 2π * f_samples[i] * t_now + ϕ) * dω
+            expν = Eν_samples[i] .* exp(1im * ψg) .* exp.(-1im * 2π * ν_samples[i] * t_now) * dν
 
-            # TODO create function to define wavefront curvature
+            # TODO create abberation function
 
-            Ex[:, :, I] .+= Ef[1] .* expω
-            Ey[:, :, I] .+= Ef[2] .* expω
-            Ez[:, :, I] .+= Ef[3] .* expω
+            Ex[:, :, I] .+= Ef[1] .* expν
+            Ey[:, :, I] .+= Ef[2] .* expν
+            Ez[:, :, I] .+= Ef[3] .* expν
         end
 
     end
@@ -417,5 +405,96 @@ function SpatioTemporalVectorDiffraction(fn_params::FN_Params, diff_params::Diff
     return E, x, y, z
 
 end
+
+
+function SpatioTemporalLightSpringVectorDiffraction(fn_params::FN_Params, diff_params::Diffract, Pol::String, 
+                zmin::Real, zmax::Real, zsteps::Int, νsteps::Int, t_now::Real, l0::Real; verbose=false)
+
+    @unpack N, t0, ϕ0, τs, τ, ωs, nt, λs, c = fn_params
+    @unpack nt, w = diff_params
+
+    # Define spectral profile
+    Δν = 2 * log(2) / (π * τs)
+    νs = ωs/2π
+    ν = collect(range((νs - 2*Δν), νs + 2*Δν, N))
+    Eν(ν) = exp(-4 * log(2) * (ν - νs)^2 / (Δν^2))
+    E_ν = Eν.(ν)
+    norm = NumericalIntegration.integrate(ν, E_ν)
+    E_ν ./= norm
+
+    # Define grid for wavelength sampling
+    νmin = ν[find_first(E_ν ./ maximum(E_ν), 1e-1, "e2")]
+    νmax = ν[find_last(E_ν ./ maximum(E_ν), 1e-1, "e2")]
+    ν_samples = collect(range(νmin, νmax, νsteps))
+    dν = (ν_samples[2] - ν_samples[1])
+    λ_samples = collect(c ./ reverse(ν_samples))
+
+    # Sampled spectrum + define spectral phase
+    ϕ = 0
+    Eν_samples = Eν.(ν_samples) .* exp.(1im * ϕ) ./ norm
+
+    # Case where OAM = n*l0 for n ~ harmonic order    
+    l(ν) = l0 * (ν / νs)
+    l_samples = round.(l.(ν_samples), digits=3)
+
+
+    if verbose
+        println("Spectral width = ", round(FWHM(ν, E_ν) * λs^2 / c * 1e9, digits=2), " nm")
+        println("OAM @ λmin = ", round(c/νmax*1e9, digits=2), " nm : ", l_samples[end])
+        println("OAM @ λ0 = ", c/νs*1e9, " nm : ", l(νs))
+        println("OAM @ λmax = ", round(c/νmin*1e9, digits=2), " nm : ", l_samples[1])
+        println("Mean OAM = ", round(sum(abs.(Eν_samples) .* l_samples .* dν), digits=3))
+
+
+        p = scatter(ν_samples.*1e-15, abs.(Eν_samples), 
+                    title="Sampled frequencies and OAM", color="blue", 
+                    ylabel="Spectral Amp. (a.u.)", xlabel="Freq. (PHz)")
+        ax2 = twinx()
+        scatter!(ax2, ν_samples.*1e-15, l_samples, color="red")
+        display(p)
+    end
+    
+    # Run once to compile and save x and y vectors
+    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, 1)
+
+    Ex = zeros(ComplexF64, N, N, zsteps)
+    Ey = zeros(ComplexF64, N, N, zsteps)
+    Ez = zeros(ComplexF64, N, N, zsteps)
+
+    z = collect(range(zmin, zmax, zsteps))
+
+    foreach(eachindex(λ_samples)) do i
+
+        fn_params.λs = λ_samples[i]
+        k = 2π/fn_params.λs
+        diff_params.kt = k * nt
+
+        zR = π * w^2 * nt / fn_params.λs
+
+        foreach(eachindex(z)) do I
+            Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[I], l_samples[i])
+
+            # Include Gouy phase
+            ψg = (abs(l_samples[i]) + 1)*atan(z[I] / zR)
+
+            # Spectral Contribution
+            expν = Eν_samples[i] .* exp(1im * ψg) .* exp.(-1im * 2π * ν_samples[i] * t_now) * dν
+
+            # TODO create abberation function
+
+            Ex[:, :, I] .+= Ef[1] .* expν
+            Ey[:, :, I] .+= Ef[2] .* expν
+            Ez[:, :, I] .+= Ef[3] .* expν
+        end
+
+    end
+
+    E = [Ex, Ey, Ez]
+
+    return E, x, y, z
+
+end
+
+
 println("Diffraction.jl compiled")
 
