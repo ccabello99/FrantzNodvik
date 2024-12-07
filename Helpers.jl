@@ -374,13 +374,22 @@ function Visualize3D(Pol::String, Comp::String, fn_params::FN_Params, diff_param
     
     elseif Comp == "x"
 
-        if slice
+        if slicex
             fig, ax1, hm1 = CairoMakie.heatmap(z.*1e6, x.*1e6, transpose(Ix[M, :, :]), colorscale=log10, colormap=:jet, colorrange=(1e-7, 1), interpolate=false)
             ax1.xlabel = "z (μm)"
             ax1.ylabel = "x (μm)"
             Colorbar(fig[1, 2], hm1)
             if save
                 Makie.save("FocusField-Ix-xz.png", fig)
+            end
+            display(fig)
+        elseif slicex
+            fig, ax1, hm1 = CairoMakie.heatmap(z.*1e6, y.*1e6, transpose(Ix[:, M, :]), colorscale=log10, colormap=:jet, colorrange=(1e-7, 1), interpolate=false)
+            ax1.xlabel = "z (μm)"
+            ax1.ylabel = "y (μm)"
+            Colorbar(fig[1, 2], hm1)
+            if save
+                Makie.save("FocusField-Ix-yz.png", fig)
             end
             display(fig)
         else
@@ -428,13 +437,22 @@ function Visualize3D(Pol::String, Comp::String, fn_params::FN_Params, diff_param
 
     elseif Comp == "y"
         
-        if slice
+        if slicex
             fig, ax1, hm1 = CairoMakie.heatmap(z.*1e6, x.*1e6, transpose(Iy[M, :, :]), colorscale=log10, colormap=:jet, colorrange=(1e-7, 1), interpolate=false)
             ax1.xlabel = "z (μm)"
             ax1.ylabel = "x (μm)"
             Colorbar(fig[1, 2], hm1)
             if save
                 Makie.save("FocusField-Iy-xz.png", fig)
+            end
+            display(fig)
+        elseif slicex
+            fig, ax1, hm1 = CairoMakie.heatmap(z.*1e6, x.*1e6, transpose(Iy[:, M, :]), colorscale=log10, colormap=:jet, colorrange=(1e-7, 1), interpolate=false)
+            ax1.xlabel = "z (μm)"
+            ax1.ylabel = "y (μm)"
+            Colorbar(fig[1, 2], hm1)
+            if save
+                Makie.save("FocusField-Iy-yz.png", fig)
             end
             display(fig)
         else
@@ -472,13 +490,22 @@ function Visualize3D(Pol::String, Comp::String, fn_params::FN_Params, diff_param
 
     elseif Comp == "z"
         
-        if slice
+        if slicex
             fig, ax1, hm1 = CairoMakie.heatmap(z.*1e6, x.*1e6, transpose(Iz[M, :, :]), colorscale=log10, colormap=:jet, colorrange=(1e-7, 1), interpolate=false)
             ax1.xlabel = "z (μm)"
             ax1.ylabel = "x (μm)"
             Colorbar(fig[1, 2], hm1)
             if save
                 Makie.save("FocusField-Iz-xz.png", fig)
+            end
+            display(fig)
+        elseif slicex
+            fig, ax1, hm1 = CairoMakie.heatmap(z.*1e6, x.*1e6, transpose(Iz[:, M, :]), colorscale=log10, colormap=:jet, colorrange=(1e-7, 1), interpolate=false)
+            ax1.xlabel = "z (μm)"
+            ax1.ylabel = "y (μm)"
+            Colorbar(fig[1, 2], hm1)
+            if save
+                Makie.save("FocusField-Iz-yz.png", fig)
             end
             display(fig)
         else
