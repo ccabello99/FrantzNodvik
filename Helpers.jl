@@ -328,14 +328,13 @@ function Visualize3D(Pol::String, Comp::String, fn_params::FN_Params, diff_param
     M = Int((fn_params.N-1) / 2)
 
     #Initialize fig
-    if slice == false
+    if slicex == false && slicey == false
         fig = Figure(size=(940,940))
         ax1 = Axis3(fig[1, 1], aspect = :equal, xlabel = "x (μm)", ylabel = "y (μm)", zlabel = "z (μm)")
     end
 
     if Comp == "t"
 
-        It = I[1]
         It ./= maximum(It[:, :, z0])
 
         if slicex
@@ -420,12 +419,16 @@ function Visualize3D(Pol::String, Comp::String, fn_params::FN_Params, diff_param
 
             else
 
-                Ex ./= maximum(Ex[:, :, z0])
+                Ex ./= maximum(abs.(Ex))
 
                 volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ex, algorithm = :iso, alpha = 0.8, colormap=:berlin,
-                                        isorange = 0.1, isovalue = maximum(Ex[:, :, z0])*exp(-0.5))
+                                        isorange = 0.1, isovalue = maximum(Ex[:, :, z0])*exp(-0.25))
                 volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ex, algorithm = :iso, alpha = 0.8, colormap=:berlin,
-                                        isorange = 0.1, isovalue = minimum(Ex[:, :, z0])*exp(-0.5))
+                                        isorange = 0.1, isovalue = minimum(Ex[:, :, z0])*exp(-0.25))
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ex, algorithm = :iso, alpha = 0.5, colormap=:berlin,
+                                        isorange = 0.1, isovalue = maximum(Ex[:, :, z0])*exp(-1))
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ex, algorithm = :iso, alpha = 0.5, colormap=:berlin,
+                                        isorange = 0.1, isovalue = minimum(Ex[:, :, z0])*exp(-1))
                 if save
                     Makie.save("FocusField-Ex-3D.png", fig)
                 end    
@@ -474,7 +477,7 @@ function Visualize3D(Pol::String, Comp::String, fn_params::FN_Params, diff_param
 
             else
 
-                Ey ./= maximum(Ey[:, :, z0])
+                Ey ./= maximum(abs.(Ey))
 
                 volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ey, algorithm = :iso, alpha = 0.8, colormap=:berlin,
                                         isorange = 0.1, isovalue = maximum(Ey[:, :, z0])*exp(-0.25))
@@ -527,7 +530,7 @@ function Visualize3D(Pol::String, Comp::String, fn_params::FN_Params, diff_param
 
             else
 
-                Ez ./= maximum(Ez[:, :, z0])
+                Ez ./= maximum(abs.(Ez))
 
                 volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ez, algorithm = :iso, alpha = 0.8, colormap=:berlin,
                                         isorange = 0.1, isovalue = maximum(Ez[:, :, z0])*exp(-0.25))
