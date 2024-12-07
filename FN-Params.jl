@@ -7,7 +7,7 @@
     c::T = 2.998e8
     kb::T = 1.38e-23
     λp::T = 527e-9
-    λs::T = 488e-9
+    λs::T = 785e-9
     ωs::T = 2π * c / λs 
     ωp::T = 2π * c / λp
     frep::T = 1e3
@@ -37,28 +37,29 @@
     =#
 
     # Chirped pulse duration
-    τs::T = 30e-15
-    GDD::T = 208000e-30
+    τs::T = 4e-15
+    #GDD::T = 208000e-30
+    GDD::T = 0
     ϕ0::T = 0
     τ::T = τs * √(1+(4log(2)*GDD/(τs^2))^2) # Real pulse duration
 
     # Grid size
     N::Int = 2^8 + 1
     pass::Int = 13
-    xmax::T = 8e-3
-    ymax::T = 8e-3
+    xmax::T = 52e-3
+    ymax::T = 52e-3
     zmax::T = 40e-6
-    dx::T = xmax / N
-    dy::T = ymax / N
-    dz::T = zmax / N
     Npass::Vector{T} = collect(0:pass-1)
 
     # Spatial domain
+    x0::T = 0
+    y0::T = 0
     x::Vector{T} = collect(range(-xmax/2, xmax/2, N))
     y::Vector{T} = collect(range(-ymax/2, ymax/2, N))
     z::Vector{T} = collect(range(-zmax/2, zmax/2, N))
-    x0::T = 0
-    y0::T = 0
+    dx::T = x[2] - x[1]
+    dy::T = y[2] - y[1]
+    dz::T = z[2] - z[1]
 
     # Time domain
     nt::Int = 2^12

@@ -1,22 +1,86 @@
 
+function zeropad(A, pad_size)
+    M = size(A)[1]
+
+    if M % 2 != 0
+        m = Int((M-1)/2)
+        pad_range = pad_size-m:pad_size+m
+    else
+        m = Int(M/2)
+        pad_range = pad_size-m:pad_size+m-1
+    end
+
+    padded_vector = zeros(eltype(A), 2 * pad_size)
+    padded_vector[pad_range] .= A
+    
+    return padded_vector
+end
+
 function zeropad_horizontal(A, pad_size)
     M, N = size(A)
-    
-    padded_matrix = zeros(eltype(A), M, N + 2 * pad_size)  # 2 * pad_size for left and right padding
-    
-    padded_matrix[:, pad_size+1:pad_size+N] .= A
+
+    if M % 2 != 0
+        m = Int((M-1)/2)
+        pad_range = pad_size-m:pad_size+m
+    else
+        m = Int(M/2)
+        pad_range = pad_size-m:pad_size+m-1
+    end
+
+    padded_matrix = zeros(eltype(A), M, 2 * pad_size)
+    padded_matrix[:, pad_range] .= A
     
     return padded_matrix
 end
 
 function zeropad_vertical(A, pad_size)
     M, N = size(A)
-    
-    padded_matrix = zeros(eltype(A), M + 2 * pad_size, N)
-    
-    padded_matrix[pad_size+1:pad_size+M, :] .= A
+
+    if N % 2 != 0
+        n = Int((N-1)/2)
+        pad_range = pad_size-n:pad_size+n
+    else
+        n = Int(N/2)
+        pad_range = pad_size-n:pad_size+n-1
+    end
+
+    padded_matrix = zeros(eltype(A), 2 * pad_size, N)
+    padded_matrix[pad_range, :] .= A
     
     return padded_matrix
+end
+
+function find_first_e2(A::Vector, tolerance::Real)
+
+    max = maximum(A)
+
+    threshold = max * exp(-2)
+
+    for (index, value) in enumerate(A)
+        if abs(value - threshold) <= tolerance
+            return index
+        end
+    end
+
+    # Return nothing if no index is found (should not occur if threshold is reasonable)
+    return nothing
+end
+
+function find_last_e2(A::Vector, tolerance::Real)
+
+    max = maximum(A)
+
+    threshold = max * exp(-2)
+
+    # Iterate in reverse to find the last index
+    for index in length(A):-1:1
+        if abs(A[index] - threshold) <= tolerance
+            return index
+        end
+    end
+
+    # Return nothing if no index is found (should not occur if threshold is reasonable)
+    return nothing
 end
 
 function CartesiantoPolar(fn_params::FN_Params, A::Matrix{Float64})
@@ -129,8 +193,8 @@ end
 
 function scaleField!(x::Vector, y::Vector, Ex::Matrix, Ey::Matrix, Ein::Real)
 
-    Aeff = calcAeff(x, y, (abs2.(Ex) .+ abs2.(Ey))) # Initial effective area
-    Jin = 2* Ein / Aeff # Initial pulse fluence
+    Aeff = calcAeff(x, y, Ex .+ Ey) # Initial effective area
+    Jin = 2 * Ein / Aeff # Initial pulse fluence
     Ex .*= sqrt(Jin)
     Ey .*= sqrt(Jin)
     
@@ -138,7 +202,7 @@ end
 
 function calcEnergy(x::Vector, y::Vector, I_tot::Matrix)
 
-    En = round(NumericalIntegration.integrate((x, y), I_tot), digits=3)
+    En = round(NumericalIntegration.integrate((x, y), I_tot), digits=5)
 
     return En
 end
@@ -148,7 +212,7 @@ function FWHM(X, Y)
     d = sign.(half_max .- Y[1:end-1]) .- sign.(half_max .- Y[2:end])
     left_idx = findfirst(d .> 0)
     right_idx = findlast(d .< 0)
-    return (X[right_idx] - X[left_idx]) / 2
+    return (X[right_idx] - X[left_idx])
 end
 
 function e2(X, Y)
@@ -156,18 +220,18 @@ function e2(X, Y)
     d = sign.(threshold .- Y[1:end-1]) .- sign.(threshold .- Y[2:end])
     left_idx = findfirst(d .> 0)
     right_idx = findlast(d .< 0)
-    return (X[right_idx] - X[left_idx]) / 2
+    return (X[right_idx] - X[left_idx])
 end
 
 function FWHM2D(x, y, A)
     N = size(A)[1]
 
     if N % 2 != 0
-        w0_x = FWHM(x, A[Int((N-1)/2+1), :])
-        w0_y = FWHM(y, A[:, Int((N-1)/2+1)])
+        w0_x = FWHM(x, A[Int((N-1)/2+1), :]) / 2
+        w0_y = FWHM(y, A[:, Int((N-1)/2+1)]) / 2
     else
-        w0_x = FWHM(x, A[Int(N/2), :])
-        w0_y = FWHM(y, A[:, Int(N/2)])
+        w0_x = FWHM(x, A[Int(N/2), :]) / 2
+        w0_y = FWHM(y, A[:, Int(N/2)]) / 2
     end
 
     return w0_x, w0_y
@@ -203,254 +267,580 @@ function FresnelCoefficients(θi::Real)
 
 end
 
-function FullSpatialProfile(::P, fn_params::FN_Params,  zmin::Real, zmax::Real, zsteps::Int, f::Real, fnum::Real, nt::Real, w::Real)
+
+function Visualize3D(Pol::String, Comp::String, fn_params::FN_Params, diff_params::Diffract, 
+                        zmin::Real, zmax::Real, zsteps::Int, l::Int; slicex=false, slicey=false, 
+                            save=false, intensity=true, phase=false)
+    # Provide Pol as "P", "S", "LHC", or "RHC"
+    # Provide Comp as "t", "x", "y", or "z" for total intensity or x-, y-, or z-component of the intensity respectively
     @unpack N = fn_params
+    
+    Ef, x, y, z = FullSpatialProfile(fn_params, diff_params, Pol, zmin, zmax, zsteps, l)
 
-    diff_params = Diffract(f = f, fnum = fnum, w = w, nt = nt)
+    if intensity
 
-    E = Gaussian(fn_params, w, w)
+        It = zeros(Float64, N, N, zsteps)
+        Ix = zeros(Float64, N, N, zsteps)
+        Iy = zeros(Float64, N, N, zsteps)
+        Iz = zeros(Float64, N, N, zsteps)
 
-    z = collect(range(zmin, zmax, zsteps))
+        It .= (abs2.(Ef[1]) .+ abs2.(Ef[2]) .+ abs2.(Ef[3]))
+        Ix .= abs2.(Ef[1])
+        Iy .= abs2.(Ef[2])
+        Iz .= abs2.(Ef[3])
 
-    # Run once to compile and save x and y vectors
-    Ef, x, y, n = RichardsWolf(fn_params, diff_params, E, zeros(N, N), 0)
+    elseif phase
 
+        ϕx = zeros(Float64, N, N, zsteps)
+        ϕy = zeros(Float64, N, N, zsteps)
+        ϕz = zeros(Float64, N, N, zsteps)
 
-    It = zeros(Float64, n, n, zsteps)
-    Ix = zeros(Float64, n, n, zsteps)
-    Iy = zeros(Float64, n, n, zsteps)
-    Iz = zeros(Float64, n, n, zsteps)
+        magx = abs.(Ef[1])
+        magy = abs.(Ef[2])
+        magz = abs.(Ef[2])
 
-    foreach(eachindex(z)) do I
-        Ef, x, y = RichardsWolf(fn_params, diff_params, E, zeros(N, N), z[I])
+        ϕx .= angle.(Ef[1])
+        ϕx[magx .< exp(-2).*maximum(magx)] .= 0
 
-        It[:, :, I] .= (abs2.(Ef[1]) .+ abs2.(Ef[2]) .+ abs2.(Ef[3]))
-        Ix[:, :, I] .= abs2.(Ef[1])
-        Iy[:, :, I] .= abs2.(Ef[2])
-        Iz[:, :, I] .= abs2.(Ef[3])
+        ϕy .= angle.(Ef[2])
+        ϕy[magy .< exp(-2).*maximum(magy)] .= 0
+
+        ϕz .= angle.(Ef[3])
+        ϕz[magz .< exp(-2).*maximum(magz)] .= 0
+
+    else
+
+        Ex = zeros(Float64, N, N, zsteps)
+        Ey = zeros(Float64, N, N, zsteps)
+        Ez = zeros(Float64, N, N, zsteps)
+
+        Ex .= real.(Ef[1])
+        Ey .= real.(Ef[2])
+        Ez .= real.(Ef[3])
+
     end
 
-    I = [It, Ix, Iy, Iz]
+    if zsteps % 2 != 0
+        z0 = Int((zsteps-1)/2)
+    else
+        z0 = Int(zsteps/2)
+    end
+    M = Int((fn_params.N-1) / 2)
 
-    return I, x, y, z, n
-end
-
-function FullSpatialProfile(::S, fn_params::FN_Params,  zmin::Real, zmax::Real, zsteps::Int, f::Real, fnum::Real, nt::Real, w::Real)
-    @unpack N = fn_params
-
-    diff_params = Diffract(f = f, fnum = fnum, w = w, nt = nt)
-
-    E = Gaussian(fn_params, w, w)
-
-    z = collect(range(zmin, zmax, zsteps))
-
-    # Run once to compile and save x and y vectors
-    Ef, x, y, n = RichardsWolf(fn_params, diff_params, zeros(N, N), E, 0)
-
-    It = zeros(Float64, n, n, zsteps)
-    Ix = zeros(Float64, n, n, zsteps)
-    Iy = zeros(Float64, n, n, zsteps)
-    Iz = zeros(Float64, n, n, zsteps)
-
-    foreach(eachindex(z)) do I
-        Ef, x, y = RichardsWolf(fn_params, diff_params, zeros(N, N), E, z[I])
-
-        It[:, :, I] .= (abs2.(Ef[1]) .+ abs2.(Ef[2]) .+ abs2.(Ef[3]))
-        Ix[:, :, I] .= abs2.(Ef[1])
-        Iy[:, :, I] .= abs2.(Ef[2])
-        Iz[:, :, I] .= abs2.(Ef[3])
+    #Initialize fig
+    if slice == false
+        fig = Figure(size=(940,940))
+        ax1 = Axis3(fig[1, 1], aspect = :equal, xlabel = "x (μm)", ylabel = "y (μm)", zlabel = "z (μm)")
     end
 
-    I = [It, Ix, Iy, Iz]
+    if Comp == "t"
 
-    return I, x, y, z, n
+        It = I[1]
+        It ./= maximum(It[:, :, z0])
+
+        if slicex
+            fig, ax1, hm1 = CairoMakie.heatmap(z.*1e6, x.*1e6, transpose(It[M, :, :]), colorscale=log10, colormap=:inferno, colorrange=(1e-5, 1), interpolate=false)
+            ax1.xlabel = "z (μm)"
+            ax1.ylabel = "x (μm)"
+            Colorbar(fig[1, 2], hm1)
+            if save
+                Makie.save("FocusField-It-xz.png", fig)
+            end
+            display(fig)
+        elseif slicey
+            fig, ax1, hm1 = CairoMakie.heatmap(z.*1e6, y.*1e6, transpose(It[:, M, :]), colorscale=log10, colormap=:inferno, colorrange=(1e-5, 1), interpolate=false)
+            ax1.xlabel = "z (μm)"
+            ax1.ylabel = "y (μm)"
+            Colorbar(fig[1, 2], hm1)
+            if save
+                Makie.save("FocusField-It-yz.png", fig)
+            end
+            display(fig)            
+        else
+            volume!(ax1, x.*1e6, y.*1e6, z.*1e6, It, algorithm = :iso, alpha = 0.8,
+                                    isorange = 0.1, isovalue = maximum(It[:, :, z0])*exp(-1))
+            volume!(ax1, x.*1e6, y.*1e6, z.*1e6, It, algorithm = :iso, alpha = 0.5,
+                                    isorange = 0.05, isovalue = maximum(It[:, :, z0])*exp(-2))
+            volume!(ax1, x.*1e6, y.*1e6, z.*1e6, It, algorithm = :iso, alpha = 0.3,
+                                    isorange = 0.01, isovalue = maximum(It[:, :, z0])*exp(-3))
+            volume!(ax1, x.*1e6, y.*1e6, z.*1e6, It, algorithm = :iso, alpha = 0.1,
+                                    isorange = 0.001, isovalue = maximum(It[:, :, z0])*exp(-4))
+            if save 
+                Makie.save("FocusField-It-3D.png", fig)
+            end
+            
+            display(fig)
+        end
+    
+    elseif Comp == "x"
+
+        if slice
+            fig, ax1, hm1 = CairoMakie.heatmap(z.*1e6, x.*1e6, transpose(Ix[M, :, :]), colorscale=log10, colormap=:jet, colorrange=(1e-7, 1), interpolate=false)
+            ax1.xlabel = "z (μm)"
+            ax1.ylabel = "x (μm)"
+            Colorbar(fig[1, 2], hm1)
+            if save
+                Makie.save("FocusField-Ix-xz.png", fig)
+            end
+            display(fig)
+        else
+            if intensity
+
+                Ix ./= maximum(Ix[:, :, z0])
+
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ix, algorithm = :iso, alpha = 0.8,
+                                        isorange = 0.1, isovalue = maximum(Ix[:, :, z0])*exp(-1))
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ix, algorithm = :iso, alpha = 0.5,
+                                        isorange = 0.05, isovalue = maximum(Ix[:, :, z0])*exp(-2))
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ix, algorithm = :iso, alpha = 0.3,
+                                        isorange = 0.01, isovalue = maximum(Ix[:, :, z0])*exp(-3))
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ix, algorithm = :iso, alpha = 0.1,
+                                        isorange = 0.001, isovalue = maximum(Ix[:, :, z0])*exp(-4))
+                if save
+                    Makie.save("FocusField-Ix-3D.png", fig)
+                end
+
+            elseif phase
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, ϕx, algorithm = :iso, colormap=:jet,
+                                        isorange = 0.1, isovalue = 3.1)
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, ϕx, algorithm = :iso, colormap=:jet,
+                                        isorange = 0.1, isovalue = -3.1)
+                if save
+                    Makie.save("FocusField-phix-3D.png", fig)
+                end
+
+            else
+
+                Ex ./= maximum(Ex[:, :, z0])
+
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ex, algorithm = :iso, alpha = 0.8, colormap=:berlin,
+                                        isorange = 0.1, isovalue = maximum(Ex[:, :, z0])*exp(-0.5))
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ex, algorithm = :iso, alpha = 0.8, colormap=:berlin,
+                                        isorange = 0.1, isovalue = minimum(Ex[:, :, z0])*exp(-0.5))
+                if save
+                    Makie.save("FocusField-Ex-3D.png", fig)
+                end    
+
+            end
+            
+            display(fig)
+        end
+
+    elseif Comp == "y"
+        
+        if slice
+            fig, ax1, hm1 = CairoMakie.heatmap(z.*1e6, x.*1e6, transpose(Iy[M, :, :]), colorscale=log10, colormap=:jet, colorrange=(1e-7, 1), interpolate=false)
+            ax1.xlabel = "z (μm)"
+            ax1.ylabel = "x (μm)"
+            Colorbar(fig[1, 2], hm1)
+            if save
+                Makie.save("FocusField-Iy-xz.png", fig)
+            end
+            display(fig)
+        else
+            if intensity
+
+                Iy ./= maximum(Iy[:, :, z0])
+
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Iy, algorithm = :iso, alpha = 0.8,
+                                        isorange = 0.1, isovalue = maximum(Iy[:, :, z0])*exp(-1))
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Iy, algorithm = :iso, alpha = 0.5,
+                                        isorange = 0.05, isovalue = maximum(Iy[:, :, z0])*exp(-2))
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Iy, algorithm = :iso, alpha = 0.3,
+                                        isorange = 0.01, isovalue = maximum(Iy[:, :, z0])*exp(-3))
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Iy, algorithm = :iso, alpha = 0.1,
+                                        isorange = 0.001, isovalue = maximum(Iy[:, :, z0])*exp(-4))
+                if save
+                    Makie.save("FocusField-Iy-3D.png", fig)
+                end 
+
+            else
+
+                Ey ./= maximum(Ey[:, :, z0])
+
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ey, algorithm = :iso, alpha = 0.8, colormap=:berlin,
+                                        isorange = 0.1, isovalue = maximum(Ey[:, :, z0])*exp(-0.25))
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ey, algorithm = :iso, alpha = 0.8, colormap=:berlin,
+                                        isorange = 0.1, isovalue = minimum(Ey[:, :, z0])*exp(-0.25))
+                if save
+                    Makie.save("FocusField-Ey-3D.png", fig)
+                end    
+
+            end
+            display(fig)
+        end
+
+    elseif Comp == "z"
+        
+        if slice
+            fig, ax1, hm1 = CairoMakie.heatmap(z.*1e6, x.*1e6, transpose(Iz[M, :, :]), colorscale=log10, colormap=:jet, colorrange=(1e-7, 1), interpolate=false)
+            ax1.xlabel = "z (μm)"
+            ax1.ylabel = "x (μm)"
+            Colorbar(fig[1, 2], hm1)
+            if save
+                Makie.save("FocusField-Iz-xz.png", fig)
+            end
+            display(fig)
+        else
+            if intensity
+
+                Iz ./= maximum(Iz[:, :, z0])
+
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Iz, algorithm = :iso, alpha = 0.8,
+                                        isorange = 0.1, isovalue = maximum(Iz[:, :, z0])*exp(-1))
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Iz, algorithm = :iso, alpha = 0.5,
+                                        isorange = 0.05, isovalue = maximum(Iz[:, :, z0])*exp(-2))
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Iz, algorithm = :iso, alpha = 0.3,
+                                        isorange = 0.01, isovalue = maximum(Iz[:, :, z0])*exp(-3))
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Iz, algorithm = :iso, alpha = 0.1,
+                                        isorange = 0.001, isovalue = maximum(Iz[:, :, z0])*exp(-4))
+                if save
+                    Makie.save("FocusField-Iz-3D.png", fig)
+                end      
+
+            else
+
+                Ez ./= maximum(Ez[:, :, z0])
+
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ez, algorithm = :iso, alpha = 0.8, colormap=:berlin,
+                                        isorange = 0.1, isovalue = maximum(Ez[:, :, z0])*exp(-0.25))
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ez, algorithm = :iso, alpha = 0.8, colormap=:berlin,
+                                        isorange = 0.1, isovalue = minimum(Ez[:, :, z0])*exp(-0.25))
+                if save
+                    Makie.save("FocusField-Ez-3D.png", fig)
+                end    
+
+            end
+            display(fig)
+        end
+
+    end
 end
 
-function FullSpatialProfile(::LHC, fn_params::FN_Params,  zmin::Real, zmax::Real, zsteps::Int, f::Real, fnum::Real, nt::Real, w::Real)
-    @unpack N = fn_params
+function Visualize4D(Pol::String, Comp::String, fn_params::FN_Params, diff_params::Diffract, zmin::Real, zmax::Real, zsteps::Int, tmin::Real, tmax::Real, tsteps::Int, l::Int; slice=false, save=false, intensity=true, phase=false)
+    @unpack N, t0, τs, ωs, ϕ0 = fn_params
 
-    diff_params = Diffract(f = f, fnum = fnum, w = w, nt = nt)
+    Ef, x, y, z = FullSpatialProfile(fn_params, diff_params, Pol, zmin, zmax, zsteps, l)
 
-    E = (1/sqrt(2)) .* Gaussian(fn_params, w, w)
+    if intensity
 
-    z = collect(range(zmin, zmax, zsteps))
+        It = zeros(Float64, N, N, zsteps)
+        Ix = zeros(Float64, N, N, zsteps)
+        Iy = zeros(Float64, N, N, zsteps)
+        Iz = zeros(Float64, N, N, zsteps)
 
-    # Run once to compile and save x and y vectors
-    Ef, x, y, n = RichardsWolf(fn_params, diff_params, E, 1im.*E, 0)
+        It .= (abs2.(Ef[1]) .+ abs2.(Ef[2]) .+ abs2.(Ef[3]))
+        Ix .= abs2.(Ef[1])
+        Iy .= abs2.(Ef[2])
+        Iz .= abs2.(Ef[3])
 
-    It = zeros(Float64, n, n, zsteps)
-    Ix = zeros(Float64, n, n, zsteps)
-    Iy = zeros(Float64, n, n, zsteps)
-    Iz = zeros(Float64, n, n, zsteps)
+    elseif phase
+        
+        ϕx = zeros(Float64, N, N, zsteps)
+        ϕy = zeros(Float64, N, N, zsteps)
+        ϕz = zeros(Float64, N, N, zsteps)
 
-    foreach(eachindex(z)) do I
-        Ef, x, y = RichardsWolf(fn_params, diff_params, E, 1im .* E, z[I])
+        ϕx .= angle.(Ef[1])
+        ϕy .= angle.(Ef[2])
+        ϕz .= angle.(Ef[3])
 
-        It[:, :, I] .= (abs2.(Ef[1]) .+ abs2.(Ef[2]) .+ abs2.(Ef[3]))
-        Ix[:, :, I] .= abs2.(Ef[1])
-        Iy[:, :, I] .= abs2.(Ef[2])
-        Iz[:, :, I] .= abs2.(Ef[3])
     end
 
-    I = [It, Ix, Iy, Iz]
+    scale = sqrt(1/(-2*log(0.5))) / sqrt(2)
+    temp = ComplexEnvelope(1, t0, ϕ0, τs * scale, 0)
+    t = collect(LinRange(tmin, tmax, tsteps))
+    E_t = real.(temp.(t) .* exp.(1im .* ωs .* t))
+    I_t = abs2.(E_t)
 
-    return I, x, y, z, n
+    z0 = Int(zsteps/2)
+    M = Int((fn_params.N-1) / 2)
+
+    It_max = maximum(It[:, :, z0])
+    Ix_max = maximum(Ix[:, :, z0])
+    Iy_max = maximum(Iy[:, :, z0])
+    Iz_max = maximum(Iz[:, :, z0])
+
+
+    foreach(eachindex(t)) do i
+        if Comp == "t"
+
+            It ./= It_max
+    
+            if slice
+                fig, ax1, hm1 = CairoMakie.heatmap(z.*1e6, x.*1e6, transpose(It[M, :, :]), colorscale=log10, colormap=:jet, colorrange=(1e-7, 1), interpolate=false)
+                ax1.xlabel = "z (μm)"
+                ax1.ylabel = "x (μm)"
+                Colorbar(fig[1, 2], hm1)
+                if save
+                    Makie.save("FocusField-It-xz.png", fig)
+                end
+                display(fig)
+            else
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, It, algorithm = :iso, alpha = 0.8,
+                                        isorange = 0.1, isovalue = maximum(It[:, :, z0])*exp(-1))
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, It, algorithm = :iso, alpha = 0.5,
+                                        isorange = 0.05, isovalue = maximum(It[:, :, z0])*exp(-2))
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, It, algorithm = :iso, alpha = 0.3,
+                                        isorange = 0.01, isovalue = maximum(It[:, :, z0])*exp(-3))
+                volume!(ax1, x.*1e6, y.*1e6, z.*1e6, It, algorithm = :iso, alpha = 0.1,
+                                        isorange = 0.001, isovalue = maximum(It[:, :, z0])*exp(-4))
+                if save 
+                    Makie.save("FocusField-It-3D.png", fig)
+                end
+                display(fig)
+            end
+        
+        elseif Comp == "x"
+    
+            Ix ./= Ix_max
+    
+            if slice
+                fig, ax1, hm1 = CairoMakie.heatmap(z.*1e6, x.*1e6, transpose(Ix[M, :, :]), colorscale=log10, colormap=:jet, colorrange=(1e-7, 1), interpolate=false)
+                ax1.xlabel = "z (μm)"
+                ax1.ylabel = "x (μm)"
+                Colorbar(fig[1, 2], hm1)
+                if save
+                    Makie.save("FocusField-Ix-xz.png", fig)
+                end
+                display(fig)
+            else
+                if intensity
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ix, algorithm = :iso, alpha = 0.8,
+                                            isorange = 0.1, isovalue = maximum(Ix[:, :, z0])*exp(-1))
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ix, algorithm = :iso, alpha = 0.5,
+                                            isorange = 0.05, isovalue = maximum(Ix[:, :, z0])*exp(-2))
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ix, algorithm = :iso, alpha = 0.3,
+                                            isorange = 0.01, isovalue = maximum(Ix[:, :, z0])*exp(-3))
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ix, algorithm = :iso, alpha = 0.1,
+                                            isorange = 0.001, isovalue = maximum(Ix[:, :, z0])*exp(-4))
+                    if save
+                        Makie.save("FocusField-Ix-3D.png", fig)
+                    end                                    
+                else
+                    Ex = abs.(E[1])
+                    Ex ./= maximum(Ex[:, :, z0])
+    
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ex, algorithm = :iso, alpha = 0.8, colormap=:jet,
+                                            isorange = 0.1, isovalue = maximum(Ex[:, :, z0])*exp(-0.25))
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ex, algorithm = :iso, alpha = 0.5, colormap=:jet,
+                                            isorange = 0.05, isovalue = maximum(Ex[:, :, z0])*exp(-0.5))
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ex, algorithm = :iso, alpha = 0.3, colormap=:jet,
+                                            isorange = 0.01, isovalue = maximum(Ex[:, :, z0])*exp(-1))
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ex, algorithm = :iso, alpha = 0.1, colormap=:jet,
+                                            isorange = 0.001, isovalue = maximum(Ex[:, :, z0])*exp(-2))
+                    if save
+                        Makie.save("FocusField-Ex-3D.png", fig)
+                    end    
+                end
+                
+                display(fig)
+            end
+    
+        elseif Comp == "y"
+    
+            Iy ./= Iy_max
+            
+            if slice
+                fig, ax1, hm1 = CairoMakie.heatmap(z.*1e6, x.*1e6, transpose(Iy[M, :, :]), colorscale=log10, colormap=:jet, colorrange=(1e-7, 1), interpolate=false)
+                ax1.xlabel = "z (μm)"
+                ax1.ylabel = "x (μm)"
+                Colorbar(fig[1, 2], hm1)
+                if save
+                    Makie.save("FocusField-Iy-xz.png", fig)
+                end
+                display(fig)
+            else
+                if intensity
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Iy, algorithm = :iso, alpha = 0.8,
+                                            isorange = 0.1, isovalue = maximum(Iy[:, :, z0])*exp(-1))
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Iy, algorithm = :iso, alpha = 0.5,
+                                            isorange = 0.05, isovalue = maximum(Iy[:, :, z0])*exp(-2))
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Iy, algorithm = :iso, alpha = 0.3,
+                                            isorange = 0.01, isovalue = maximum(Iy[:, :, z0])*exp(-3))
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Iy, algorithm = :iso, alpha = 0.1,
+                                            isorange = 0.001, isovalue = maximum(Iy[:, :, z0])*exp(-4))
+                    if save
+                        Makie.save("FocusField-Iy-3D.png", fig)
+                    end                                    
+                else
+                    Ey = abs.(E[2])
+                    Ey ./= maximum(Ey[:, :, z0])
+    
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ey, algorithm = :iso, alpha = 0.8,
+                                            isorange = 0.1, isovalue = maximum(Ey[:, :, z0])*exp(-0.25))
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ey, algorithm = :iso, alpha = 0.5,
+                                            isorange = 0.05, isovalue = maximum(Ey[:, :, z0])*exp(-0.5))
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ey, algorithm = :iso, alpha = 0.3,
+                                            isorange = 0.01, isovalue = maximum(Ey[:, :, z0])*exp(-1))
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ey, algorithm = :iso, alpha = 0.1,
+                                            isorange = 0.001, isovalue = maximum(Ey[:, :, z0])*exp(-2))
+                    if save
+                        Makie.save("FocusField-Ey-3D.png", fig)
+                    end    
+                end
+                display(fig)
+            end
+    
+        elseif Comp == "z"
+    
+            Iz ./= Iz_max
+            
+            if slice
+                fig, ax1, hm1 = CairoMakie.heatmap(z.*1e6, x.*1e6, transpose(Iz[M, :, :]), colorscale=log10, colormap=:jet, colorrange=(1e-7, 1), interpolate=false)
+                ax1.xlabel = "z (μm)"
+                ax1.ylabel = "x (μm)"
+                Colorbar(fig[1, 2], hm1)
+                if save
+                    Makie.save("FocusField-Iz-xz.png", fig)
+                end
+                display(fig)
+            else
+                if intensity
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Iz, algorithm = :iso, alpha = 0.8,
+                                            isorange = 0.1, isovalue = maximum(Iz[:, :, z0])*exp(-1))
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Iz, algorithm = :iso, alpha = 0.5,
+                                            isorange = 0.05, isovalue = maximum(Iz[:, :, z0])*exp(-2))
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Iz, algorithm = :iso, alpha = 0.3,
+                                            isorange = 0.01, isovalue = maximum(Iz[:, :, z0])*exp(-3))
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Iz, algorithm = :iso, alpha = 0.1,
+                                            isorange = 0.001, isovalue = maximum(Iz[:, :, z0])*exp(-4))
+                    if save
+                        Makie.save("FocusField-Iz-3D.png", fig)
+                    end                                    
+                else
+                    Ez = abs.(E[3])
+                    Ez ./= maximum(Ez[:, :, z0])
+    
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ez, algorithm = :iso, alpha = 0.8,
+                                            isorange = 0.1, isovalue = maximum(Ez[:, :, z0])*exp(-0.25))
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ez, algorithm = :iso, alpha = 0.5,
+                                            isorange = 0.05, isovalue = maximum(Ez[:, :, z0])*exp(-0.5))
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ez, algorithm = :iso, alpha = 0.3,
+                                            isorange = 0.01, isovalue = maximum(Ez[:, :, z0])*exp(-1))
+                    volume!(ax1, x.*1e6, y.*1e6, z.*1e6, Ez, algorithm = :iso, alpha = 0.1,
+                                            isorange = 0.001, isovalue = maximum(Ez[:, :, z0])*exp(-2))
+                    if save
+                        Makie.save("FocusField-Ez-3D.png", fig)
+                    end    
+                end
+                display(fig)
+            end
+        end
+    end
 end
 
-function FullSpatialProfile(::RHC, fn_params::FN_Params,  zmin::Real, zmax::Real, zsteps::Int, f::Real, fnum::Real, nt::Real, w::Real)
-    @unpack N = fn_params
 
-    diff_params = Diffract(f = f, fnum = fnum, w = w, nt = nt)
-
-    E = (1/sqrt(2)) .* Gaussian(fn_params, w, w)
+function DiffractionMovie(Pol::String, Comp::String, fn_params::FN_Params, diff_params::Diffract, zmin::Real, zmax::Real, zsteps::Int, l::Int; save=false, intensity=true, phase=false)
+    @unpack kt, m, w = diff_params
 
     z = collect(range(zmin, zmax, zsteps))
+    zR = π*w^2 / fn_params.λs
 
-    # Run once to compile and save x and y vectors
-    Ef, x, y, n = RichardsWolf(fn_params, diff_params, E, -1im.*E, 0)
+    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l)
 
-    It = zeros(Float64, n, n, zsteps)
-    Ix = zeros(Float64, n, n, zsteps)
-    Iy = zeros(Float64, n, n, zsteps)
-    Iz = zeros(Float64, n, n, zsteps)
+    It_max = maximum(abs2.(Ef[1]) .+ abs2.(Ef[2]) .+ abs2.(Ef[3]))
+    Ix_max = maximum(abs2.(Ef[1]))
+    Iy_max = maximum(abs2.(Ef[2]))
+    Iz_max = maximum(abs2.(Ef[3]))
 
+    Ex_max = maximum(abs.(Ef[1]))
+    Ey_max = maximum(abs.(Ef[2]))
+    Ez_max = maximum(abs.(Ef[3]))
 
-    foreach(eachindex(z)) do I
-        Ef, x, y = RichardsWolf(fn_params, diff_params, E, -1im .* E, z[I])
+    for i in eachindex(z)
+        Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[i], l);
 
-        It[:, :, I] .= (abs2.(Ef[1]) .+ abs2.(Ef[2]) .+ abs2.(Ef[3]))
-        Ix[:, :, I] .= abs2.(Ef[1])
-        Iy[:, :, I] .= abs2.(Ef[2])
-        Iz[:, :, I] .= abs2.(Ef[3])
+        ψg = (abs(l) + 1)*atan(z[i] / zR)
+        Ef[1] .*= exp(1im * ψg)
+        Ef[2] .*= exp(1im * ψg)
+        Ef[3] .*= exp(1im * ψg)
+
+        if Comp == "t"
+            if intensity == false || phase == false || phase == true
+                break
+            end
+            p = Plots.heatmap(x.*1e6, y.*1e6, (abs2.(Ef[1]) .+ abs2.(Ef[2]) .+ abs2.(Ef[3])), ylabel="y (μm)", xlabel="x (μm)", 
+            title="It @ z = "*string(round(z[i].*1e6, digits=2))*" μm from focal plane", clims=(0, It_max))
+            if save
+                savefig(p, "It_"*string(i)*".png")
+            end
+            display(p)
+        elseif Comp == "x"
+            if intensity
+                p = Plots.heatmap(x.*1e6, y.*1e6, (abs2.(Ef[1])), ylabel="y (μm)", xlabel="x (μm)", 
+                title="Ix @ z = "*string(round(z[i].*1e6, digits=2))*" μm from focal plane", clims=(0, Ix_max))
+                if save
+                    savefig(p, "Ix_"*string(i)*".png")
+                end
+            elseif phase
+                ϕ = angle.(Ef[1])
+                mag = abs.(Ef[1])
+                ϕ[mag .< exp(-2).*maximum(mag)] .= 0
+                p = Plots.heatmap(x.*1e6, y.*1e6, ϕ, ylabel="y (μm)", xlabel="x (μm)", title="ϕx @ z = "*string(round(z[i].*1e6, digits=2))*" μm from focal plane", cmap=:jet, clims=(-π, π))
+                if save
+                    savefig(p, "phix_"*string(i)*".png")
+                end
+            else
+                p = Plots.heatmap(x.*1e6, y.*1e6, (real.(Ef[1])), ylabel="y (μm)", xlabel="x (μm)", 
+                title="Ex @ z = "*string(round(z[i].*1e6, digits=2))*" μm from focal plane", cmap=:berlin, clims=(-Ex_max, Ex_max))
+                if save
+                    savefig(p, "Ex_"*string(i)*".png")
+                end
+            end
+            display(p)
+
+        elseif Comp == "y"
+            if intensity
+                p = Plots.heatmap(x.*1e6, y.*1e6, (abs2.(Ef[2])), ylabel="y (μm)", xlabel="x (μm)", 
+                title="Iy @ z = "*string(round(z[i].*1e6, digits=2))*" μm from focal plane", clims=(0, Iy_max))
+                if save
+                    savefig(p, "Iy_"*string(i)*".png")
+                end
+            elseif phase
+                ϕ = angle.(Ef[2])
+                mag = abs.(Ef[2])
+                ϕ[mag .< exp(-2).*maximum(mag)] .= 0
+                p = Plots.heatmap(x.*1e6, y.*1e6, ϕ, ylabel="y (μm)", xlabel="x (μm)", title="ϕy @ z = "*string(round(z[i].*1e6, digits=2))*" μm from focal plane", cmap=:jet, clims=(-π, π))
+                if save
+                    savefig(p, "phiy_"*string(i)*".png")
+                end                
+            else
+                p = Plots.heatmap(x.*1e6, y.*1e6, (real.(Ef[2])), ylabel="y (μm)", xlabel="x (μm)", 
+                title="Ey @ z = "*string(round(z[i].*1e6, digits=2))*" μm from focal plane", cmap=:berlin, clims=(-Ey_max, Ey_max))
+                if save
+                    savefig(p, "Ey_"*string(i)*".png")
+                end
+            end
+            display(p)
+
+        elseif Comp == "z"
+            if intensity
+                p = Plots.heatmap(x.*1e6, y.*1e6, (abs2.(Ef[3])), ylabel="y (μm)", xlabel="x (μm)", 
+                title="Iz @ z = "*string(round(z[i].*1e6, digits=2))*" μm from focal plane", clims=(0, Iz_max))
+                if save
+                    savefig(p, "Iz_"*string(i)*".png")
+                end
+            elseif phase
+                ϕ = angle.(Ef[3])
+                mag = abs.(Ef[3])
+                ϕ[mag .< exp(-2).*maximum(mag)] .= 0
+                p = Plots.heatmap(x.*1e6, y.*1e6, ϕ, ylabel="y (μm)", xlabel="x (μm)", title="ϕz @ z = "*string(round(z[i].*1e6, digits=2))*" μm from focal plane", cmap=:jet, clims=(-π, π))
+                if save
+                    savefig(p, "phiz_"*string(i)*".png")
+                end                
+            else
+                p = Plots.heatmap(x.*1e6, y.*1e6, (real.(Ef[3])), ylabel="y (μm)", xlabel="x (μm)", 
+                title="Ez @ z = "*string(round(z[i].*1e6, digits=2))*" μm from focal plane", cmap=:berlin, clims=(-Ez_max, Ez_max))
+                if save
+                    savefig(p, "Ez_"*string(i)*".png")
+                end
+            end
+            display(p)
+            
+        end
+        
     end
-
-    I = [It, Ix, Iy, Iz]
-
-    return I, x, y, z, n
 end
 
-function FullSpatialProfile(::P, fn_params::FN_Params,  zmin::Real, zmax::Real, zsteps::Int, f::Real, fnum::Real, nt::Real, w::Real, l::Int)
-    @unpack N = fn_params
-
-    diff_params = Diffract(f = f, fnum = fnum, w = w, nt = nt)
-
-    E = LaguerreGauss(fn_params, 0, l, 1, w)
-
-    z = collect(range(zmin, zmax, zsteps))
-
-    # Run once to compile and save x and y vectors
-    Ef, x, y, n = RichardsWolf(fn_params, diff_params, E, zeros(N, N), 0)
-
-    It = zeros(Float64, n, n, zsteps)
-    Ix = zeros(Float64, n, n, zsteps)
-    Iy = zeros(Float64, n, n, zsteps)
-    Iz = zeros(Float64, n, n, zsteps)
-
-    foreach(eachindex(z)) do I
-        Ef, x, y = RichardsWolf(fn_params, diff_params, E, zeros(N, N), z[I])
-
-        It[:, :, I] .= (abs2.(Ef[1]) .+ abs2.(Ef[2]) .+ abs2.(Ef[3]))
-        Ix[:, :, I] .= abs2.(Ef[1])
-        Iy[:, :, I] .= abs2.(Ef[2])
-        Iz[:, :, I] .= abs2.(Ef[3])
-    end
-
-    I = [It, Ix, Iy, Iz]
-
-    return I, x, y, z, n
-end
-
-function FullSpatialProfile(::S, fn_params::FN_Params,  zmin::Real, zmax::Real, zsteps::Int, f::Real, fnum::Real, nt::Real, w::Real, l::Int)
-    @unpack N = fn_params
-
-    diff_params = Diffract(f = f, fnum = fnum, w = w, nt = nt)
-
-    E = LaguerreGauss(fn_params, 0, l, 1, w)
-
-    z = collect(range(zmin, zmax, zsteps))
-
-    # Run once to compile and save x and y vectors
-    Ef, x, y, n = RichardsWolf(fn_params, diff_params, zeros(N, N), E, 0)
-
-    It = zeros(Float64, n, n, zsteps)
-    Ix = zeros(Float64, n, n, zsteps)
-    Iy = zeros(Float64, n, n, zsteps)
-    Iz = zeros(Float64, n, n, zsteps)
-
-    foreach(eachindex(z)) do I
-        Ef, x, y = RichardsWolf(fn_params, diff_params, zeros(N, N), E, z[I])
-
-        It[:, :, I] .= (abs2.(Ef[1]) .+ abs2.(Ef[2]) .+ abs2.(Ef[3]))
-        Ix[:, :, I] .= abs2.(Ef[1])
-        Iy[:, :, I] .= abs2.(Ef[2])
-        Iz[:, :, I] .= abs2.(Ef[3])
-    end
-
-    I = [It, Ix, Iy, Iz]
-
-    return I, x, y, z, n
-end
-
-function FullSpatialProfile(::LHC, fn_params::FN_Params,  zmin::Real, zmax::Real, zsteps::Int, f::Real, fnum::Real, nt::Real, w::Real, l::Int)
-    @unpack N = fn_params
-
-    diff_params = Diffract(f = f, fnum = fnum, w = w, nt = nt)
-
-    E = (1/sqrt(2)) .* LaguerreGauss(fn_params, 0, l, 1, w)
-
-    z = collect(range(zmin, zmax, zsteps))
-
-    # Run once to compile and save x and y vectors
-    Ef, x, y, n = RichardsWolf(fn_params, diff_params, E, 1im.*E, 0)
-
-    It = zeros(Float64, n, n, zsteps)
-    Ix = zeros(Float64, n, n, zsteps)
-    Iy = zeros(Float64, n, n, zsteps)
-    Iz = zeros(Float64, n, n, zsteps)
-
-    foreach(eachindex(z)) do I
-        Ef, x, y = RichardsWolf(fn_params, diff_params, E, 1im .* E, z[I])
-
-        It[:, :, I] .= (abs2.(Ef[1]) .+ abs2.(Ef[2]) .+ abs2.(Ef[3]))
-        Ix[:, :, I] .= abs2.(Ef[1])
-        Iy[:, :, I] .= abs2.(Ef[2])
-        Iz[:, :, I] .= abs2.(Ef[3])
-    end
-
-    I = [It, Ix, Iy, Iz]
-
-    return I, x, y, z, n
-end
-
-function FullSpatialProfile(::RHC, fn_params::FN_Params,  zmin::Real, zmax::Real, zsteps::Int, f::Real, fnum::Real, nt::Real, w::Real, l::Int)
-    @unpack N = fn_params
-
-    diff_params = Diffract(f = f, fnum = fnum, w = w, nt = nt)
-
-    E = (1/sqrt(2)) .* LaguerreGauss(fn_params, 0, l, 1, w)
-
-    z = collect(range(zmin, zmax, zsteps))
-
-    # Run once to compile and save x and y vectors
-    Ef, x, y, n = RichardsWolf(fn_params, diff_params, E, -1im.*E, 0)
-
-    It = zeros(Float64, n, n, zsteps)
-    Ix = zeros(Float64, n, n, zsteps)
-    Iy = zeros(Float64, n, n, zsteps)
-    Iz = zeros(Float64, n, n, zsteps)
-
-    foreach(eachindex(z)) do I
-        Ef, x, y = RichardsWolf(fn_params, diff_params, E, -1im .* E, z[I])
-
-        It[:, :, I] .= (abs2.(Ef[1]) .+ abs2.(Ef[2]) .+ abs2.(Ef[3]))
-        Ix[:, :, I] .= abs2.(Ef[1])
-        Iy[:, :, I] .= abs2.(Ef[2])
-        Iz[:, :, I] .= abs2.(Ef[3])
-    end
-
-    I = [It, Ix, Iy, Iz]
-
-    return I, x, y, z, n
-end
 
 println("Helpers.jl compiled")

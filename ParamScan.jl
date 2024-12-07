@@ -1,5 +1,5 @@
 using CSV, Tables, DataFrames, Printf, JLD, Plots
-using LinearAlgebra, FFTW, ForwardDiff, NumericalIntegration
+using LinearAlgebra, FFTW, ForwardDiff, NumericalIntegration, DSP
 using ThreadsX, Parameters, Dierckx, ClassicalOrthogonalPolynomials
 
 include("FN-Params.jl")
@@ -9,6 +9,8 @@ include("EM-Field.jl")
 include("Passes.jl")
 include("Diffraction.jl")
 include("Helpers.jl")
+
+FFTW.set_provider!("fftw")
 
 
 function ParamScan(fn_param::FN_Params, w_init::Real, w_exp::Real, wp_init::Real, Ep_init::Real, Ein_init::Real, steps::Int, LG::Bool, visualize::Bool)

@@ -80,9 +80,9 @@ function SuperGaussian(params::FN_Params, w::Real, nsg::Int)
 
 end
 
-function calcAeff(x::Vector, y::Vector, J::Matrix)
+function calcAeff(x::Vector, y::Vector, E::Matrix)
 
-    Aeff = ((NumericalIntegration.integrate((x,y), J)).^2) / (NumericalIntegration.integrate((x,y), J.^2))
+    Aeff = ((NumericalIntegration.integrate((x,y), abs2.(E))).^2) / (NumericalIntegration.integrate((x,y), abs2.(E).^2))
 
     return Aeff
 end
