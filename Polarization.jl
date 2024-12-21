@@ -7,7 +7,7 @@ struct Radial end
 struct Azimuthal end
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, 
-                        ::P; verbose=false, aberration=false, hole=false)
+                        ::P, Z::Vector; verbose=false, aberration=false, hole=false)
     @unpack N, x, y, λs = fn_params
     @unpack w, θ, ϕ, Ein = diff_params
 
@@ -22,7 +22,6 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     Ex .= Gaussian(fn_params, w, w)
 
     if aberration
-        Z = ZernikeCoefficients(0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0)
         Φxy_x = Zernike(fn_params, Ex, Z, 0)
         Ex .*= exp.(1im.*Φxy_x)
     end
@@ -63,7 +62,7 @@ end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, 
-                        ::S; verbose=false, aberration=false, hole=false)
+                        ::S, Z::Vector; verbose=false, aberration=false, hole=false)
     @unpack N, x, y, λs = fn_params
     @unpack w, θ, ϕ, Ein = diff_params
 
@@ -78,7 +77,6 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     Ey .= Gaussian(fn_params, w, w)
 
     if aberration
-        Z = ZernikeCoefficients(0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         Φxy_y = Zernike(fn_params, Ey, Z, 0)
         Ey .*= exp.(1im.*Φxy_y)
     end
@@ -120,7 +118,7 @@ end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, 
-                        ::D; verbose=false, aberration=false, hole=false)
+                        ::D, Z::Vector; verbose=false, aberration=false, hole=false)
     @unpack N, x, y, λs = fn_params
     @unpack w, θ, ϕ, Ein = diff_params
 
@@ -136,7 +134,6 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     Ey .= Gaussian(fn_params, w, w) ./ sqrt(2)
 
     if aberration
-        Z = ZernikeCoefficients(0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0)
         Φxy_x = Zernike(fn_params, Ex, Z, 0)
         Φxy_y = Zernike(fn_params, Ey, Z, 0)
         Ex .*= exp.(1im.*Φxy_x)
@@ -180,7 +177,7 @@ end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, 
-                        ::RHC; verbose=false, aberration=false, hole=false)
+                        ::RHC, Z::Vector; verbose=false, aberration=false, hole=false)
     @unpack N, x, y, λs = fn_params
     @unpack w, θ, ϕ, Ein = diff_params
 
@@ -196,7 +193,6 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     Ey .= -1im .* Gaussian(fn_params, w, w) ./ sqrt(2)
 
     if aberration
-        Z = ZernikeCoefficients(0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         Φxy_x = Zernike(fn_params, Ex, Z, 0)
         Φxy_y = Zernike(fn_params, Ey, Z, 0)
         Ex .*= exp.(1im.*Φxy_x)
@@ -241,7 +237,7 @@ end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, 
-                        ::LHC; verbose=false, aberration=false, hole=false)
+                        ::LHC, Z::Vector; verbose=false, aberration=false, hole=false)
     @unpack N, x, y, λs = fn_params
     @unpack w, θ, ϕ, Ein = diff_params
 
@@ -257,7 +253,6 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     Ey .= 1im .* Gaussian(fn_params, w, w) ./ sqrt(2)
 
     if aberration
-        Z = ZernikeCoefficients(0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         Φxy_x = Zernike(fn_params, Ex, Z, 0)
         Φxy_y = Zernike(fn_params, Ey, Z, 0)
         Ex .*= exp.(1im.*Φxy_x)
@@ -302,7 +297,7 @@ end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, 
-                        ::Radial; verbose=false, aberration=false, hole=false)
+                        ::Radial, Z::Vector; verbose=false, aberration=false, hole=false)
     @unpack N, x, y, λs = fn_params
     @unpack w, θ, ϕ, Ein = diff_params
 
@@ -318,7 +313,6 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     Ey .= sinϕ .* Gaussian(fn_params, w, w)
 
     if aberration
-        Z = ZernikeCoefficients(0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         Φxy_x = Zernike(fn_params, Ex, Z, 0)
         Φxy_y = Zernike(fn_params, Ey, Z, 0)
         Ex .*= exp.(1im.*Φxy_x)
@@ -363,7 +357,7 @@ end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, 
-                        ::Azimuthal; verbose=false, aberration=false, hole=false)
+                        ::Azimuthal, Z::Vector; verbose=false, aberration=false, hole=false)
     @unpack N, x, y, λs = fn_params
     @unpack w, θ, ϕ, Ein = diff_params
 
@@ -379,7 +373,6 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     Ey .= cosϕ .* Gaussian(fn_params, w, w)
     
     if aberration
-        Z = ZernikeCoefficients(0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         Φxy_x = Zernike(fn_params, Ex, Z, 0)
         Φxy_y = Zernike(fn_params, Ey, Z, 0)
         Ex .*= exp.(1im.*Φxy_x)
@@ -423,7 +416,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 end
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real, 
-                        ::P; verbose=false, aberration=false, hole=false)
+                        ::P, Z::Vector; verbose=false, aberration=false, hole=false)
     @unpack N, x, y, λs = fn_params
     @unpack w, θ, ϕ, Ein = diff_params
 
@@ -438,7 +431,6 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
     Ex .= LaguerreGauss(fn_params, 0, l, 1, w)
 
     if aberration
-        Z = ZernikeCoefficients(0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         Φxy_x = Zernike(fn_params, Ex, Z, l)
         Ex .*= exp.(1im.*Φxy_x)
     end
@@ -479,7 +471,7 @@ end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real, 
-                        ::S; verbose=false, aberration=false, hole=false)
+                        ::S, Z::Vector; verbose=false, aberration=false, hole=false)
     @unpack N, x, y, λs = fn_params
     @unpack w, θ, ϕ, Ein = diff_params
 
@@ -494,7 +486,6 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
     Ey .= LaguerreGauss(fn_params, 0, l, 1, w)
 
     if aberration
-        Z = ZernikeCoefficients(0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         Φxy_y = Zernike(fn_params, Ey, Z, l)
         Ey .*= exp.(1im.*Φxy_y)
     end
@@ -536,7 +527,7 @@ end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real, 
-                        ::D; verbose=false, aberration=false, hole=false)
+                        ::D, Z::Vector; verbose=false, aberration=false, hole=false)
     @unpack N, x, y, λs = fn_params
     @unpack w, θ, ϕ, Ein = diff_params
 
@@ -552,7 +543,6 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
     Ey .= LaguerreGauss(fn_params, 0, l, 1, w) ./ sqrt(2)
 
     if aberration
-        Z = ZernikeCoefficients(0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         Φxy_x = Zernike(fn_params, Ex, Z, l)
         Φxy_y = Zernike(fn_params, Ey, Z, l)
         Ex .*= exp.(1im.*Φxy_x)
@@ -596,7 +586,7 @@ end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real, 
-                        ::RHC; verbose=false, aberration=false, hole=false)
+                        ::RHC, Z::Vector; verbose=false, aberration=false, hole=false)
     @unpack N, x, y, λs = fn_params
     @unpack w, θ, ϕ, Ein = diff_params
 
@@ -612,7 +602,6 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
     Ey .= -1im .* LaguerreGauss(fn_params, 0, l, 1, w) ./ sqrt(2)
 
     if aberration
-        Z = ZernikeCoefficients(0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         Φxy_x = Zernike(fn_params, Ex, Z, l)
         Φxy_y = Zernike(fn_params, Ey, Z, l)
         Ex .*= exp.(1im.*Φxy_x)
@@ -657,7 +646,7 @@ end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real, 
-                        ::LHC; verbose=false, aberration=false, hole=false)
+                        ::LHC, Z::Vector; verbose=false, aberration=false, hole=false)
     @unpack N, x, y, λs = fn_params
     @unpack w, θ, ϕ, Ein = diff_params
 
@@ -673,7 +662,6 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
     Ey .= 1im .* LaguerreGauss(fn_params, 0, l, 1, w) ./ sqrt(2)
 
     if aberration
-        Z = ZernikeCoefficients(0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         Φxy_x = Zernike(fn_params, Ex, Z, l)
         Φxy_y = Zernike(fn_params, Ey, Z, l)
         Ex .*= exp.(1im.*Φxy_x)
@@ -718,7 +706,7 @@ end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
-                        ::Radial; verbose=false, aberration=false, hole=false)
+                        ::Radial, Z::Vector; verbose=false, aberration=false, hole=false)
     @unpack N, x, y, λs = fn_params
     @unpack w, θ, ϕ, Ein = diff_params
 
@@ -734,7 +722,6 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
     Ey .= sinϕ .* LaguerreGauss(fn_params, 0, l, 1, w)
 
     if aberration
-        Z = ZernikeCoefficients(0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         Φxy_x = Zernike(fn_params, Ex, Z, l)
         Φxy_y = Zernike(fn_params, Ey, Z, l)
         Ex .*= exp.(1im.*Φxy_x)
@@ -779,7 +766,7 @@ end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
-                        ::Azimuthal; verbose=false, aberration=false, hole=false)
+                        ::Azimuthal, Z::Vector; verbose=false, aberration=false, hole=false)
     @unpack N, x, y, λs = fn_params
     @unpack w, θ, ϕ, Ein = diff_params
 
@@ -795,7 +782,6 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
     Ey .= cosϕ .* LaguerreGauss(fn_params, 0, l, 1, w)
     
     if aberration
-        Z = ZernikeCoefficients(0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         Φxy_x = Zernike(fn_params, Ex, Z, l)
         Φxy_y = Zernike(fn_params, Ey, Z, l)
         Ex .*= exp.(1im.*Φxy_x)

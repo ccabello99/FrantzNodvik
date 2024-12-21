@@ -295,6 +295,24 @@ function SpectralPhase(ϕ0::Real, ϕ1::Real, ϕ2::Real, ϕ3::Real, ϕ4::Real, ν
 
 end
 
+function readSpect(fn_params::FN_Params, SpectData::String)
+    @unpack c = fn_params
+
+    data = CSV.read(SpectData, DataFrame)
+    wl = data[!, 1] .* 1e-9
+    I_ret = data[!, 3]
+    phase = data[!, 4]
+
+    spl1 = Spline1D(wl, I_ret, k=3)
+    spl2 = Spline1D(wl, phase, k=3)
+
+    I(λ) = spl1(λ)
+    ϕ(λ) = spl2(λ)
+
+    return wl, I, ϕ
+
+end
+
 function ZernikeCoefficients(Z1::Real, Z2::Real, Z3::Real, Z4::Real, 
                                 Z5::Real, Z6::Real, Z7::Real, Z8::Real, 
                                     Z9::Real, Z10::Real, Z11::Real)
@@ -363,9 +381,9 @@ function Visualize3D(Pol::String, Comp::String, fn_params::FN_Params, diff_param
     @unpack N = fn_params
     
     if typeof(l) == Vector{Float64}
-        Ef, x, y, z = FullSpatialProfile(fn_params, diff_params, Pol, zmin, zmax, zsteps, l=l, coeffs=coeffs)
+        Ef, x, y, z = FullSpatialProfile(fn_params, diff_params, Pol, zmin, zmax, zsteps, Z, l=l, coeffs=coeffs)
     else
-        Ef, x, y, z = FullSpatialProfile(fn_params, diff_params, Pol, zmin, zmax, zsteps, l=l)
+        Ef, x, y, z = FullSpatialProfile(fn_params, diff_params, Pol, zmin, zmax, zsteps, Z, l=l)
     end
 
     if intensity
@@ -639,14 +657,14 @@ function Visualize3D(Pol::String, Comp::String, fn_params::FN_Params, diff_param
 end
 
 function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::Diffract, 
-                            zmin::Real, zmax::Real, zsteps::Int, l::Real; save=false, 
+                            zmin::Real, zmax::Real, zsteps::Int, l::Real, Z::Vector; save=false, 
                                 intensity=true, phase=false, aberration=false, hole=false)
     @unpack kt, m, w = diff_params
 
     z = collect(range(zmin, zmax, zsteps))
     zR = π*w^2 / fn_params.λs
 
-    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l, aberration=aberration, hole=hole)
+    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l, Z, aberration=aberration, hole=hole)
 
     It_max = maximum(abs2.(Ef[1]) .+ abs2.(Ef[2]) .+ abs2.(Ef[3]))
     Ix_max = maximum(abs2.(Ef[1]))
@@ -658,7 +676,7 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
     Ez_max = maximum(abs.(Ef[3]))
 
     for i in eachindex(z)
-        Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[i], l, aberration=aberration, hole=hole);
+        Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[i], l, Z, aberration=aberration, hole=hole);
 
         ψg = (abs(l) + 1)*atan(z[i] / zR)
         Ef[1] .*= exp(1im * ψg)

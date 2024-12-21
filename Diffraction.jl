@@ -49,7 +49,7 @@ end
 
 
 function TransmissionFunction(fn_params::FN_Params, diff_params::Diffract, 
-                                Pol, l::Real; verbose=false, aberration=false, hole=false)
+                                Pol, l::Real, Z::Vector; verbose=false, aberration=false, hole=false)
     @unpack sinθmax, R, aperture, θ, ϕ = diff_params
     @unpack N, x, y = fn_params
     
@@ -60,9 +60,9 @@ function TransmissionFunction(fn_params::FN_Params, diff_params::Diffract,
 
     # Initialize fields and apply polarization matrix
     if l != 0
-        Epx, Epy, Epz = Polarization(fn_params, diff_params, Pol, l, aberration=aberration, hole=hole)
+        Epx, Epy, Epz = Polarization(fn_params, diff_params, Pol, l, Z, aberration=aberration, hole=hole)
     else
-        Epx, Epy, Epz = Polarization(fn_params, diff_params, Pol, aberration=aberration, hole=hole)
+        Epx, Epy, Epz = Polarization(fn_params, diff_params, Pol, Z, aberration=aberration, hole=hole)
     end
 
     # Apodization
@@ -90,13 +90,13 @@ function TransmissionFunction(fn_params::FN_Params, diff_params::Diffract,
 end
 
 function RichardsWolf(fn_params::FN_Params, diff_params::Diffract, 
-                        Pol, z::Real, l::Real; verbose=false, aberration=false, hole=false)
+                        Pol, z::Real, l::Real, Z::Vector; verbose=false, aberration=false, hole=false)
     @unpack sinθmax, f, R, kt, m, θ = diff_params
     @unpack N, λs, dx, dy = fn_params
 
     factor = -(1im * R^2 / (f * λs * m^2))
 
-    Etx, Ety, Etz = TransmissionFunction(fn_params, diff_params, Pol, l, aberration=aberration, hole=hole)
+    Etx, Ety, Etz = TransmissionFunction(fn_params, diff_params, Pol, l, Z, aberration=aberration, hole=hole)
 
     # Fields
     Efx = zeros(ComplexF64, N, N)
@@ -174,8 +174,9 @@ function RichardsWolf(fn_params::FN_Params, diff_params::Diffract,
 
 end
 
-function FullSpatialProfile(fn_params::FN_Params, diff_params::Diffract, Pol::String, 
-                                zmin::Real, zmax::Real, zsteps::Int; l = 0, coeffs = 0, aberration=false, hole=false)
+function FullSpatialProfile(fn_params::FN_Params, diff_params::Diffract, Pol, 
+                                zmin::Real, zmax::Real, zsteps::Int, Z::Vector; l = 0, 
+                                    coeffs = 0, aberration=false, hole=false)
     @unpack N, λs = fn_params
     @unpack w, nt, kt = diff_params
 
@@ -188,10 +189,10 @@ function FullSpatialProfile(fn_params::FN_Params, diff_params::Diffract, Pol::St
     zR = π * w^2 * nt / λs
 
     # Run once to compile and save x and y vectors
-    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l, aberration=aberration, hole=hole)
+    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l, Z, aberration=aberration, hole=hole)
 
     foreach(eachindex(z)) do I
-        Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[I], l, aberration=aberration, hole=hole)
+        Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[I], l, Z, aberration=aberration, hole=hole)
     
         # Include Gouy phase
         ψg = (abs(l) + 1)*atan(z[I] / zR)
@@ -206,33 +207,51 @@ function FullSpatialProfile(fn_params::FN_Params, diff_params::Diffract, Pol::St
     return E, x, y, z
 end
 
-function SpatioTemporalVectorDiffraction(fn_params::FN_Params, diff_params::Diffract, Pol::String, 
-                zmin::Real, zmax::Real, zsteps::Int, νsteps::Int, t_now::Real, l::Real; verbose=false, aberration=false, hole=false)
+function SpatioTemporalVectorDiffraction(fn_params::FN_Params, diff_params::Diffract, Pol, 
+                zmin::Real, zmax::Real, zsteps::Int, νsteps::Int, t_now::Real, l::Real, Z::Vector; 
+                verbose=false, aberration=false, hole=false, spectdata=false)
     @unpack N, t0, ϕ0, τs, τ, ωs, nt, c = fn_params
     @unpack nt, w = diff_params
 
     # Define spectral profile
-    Δν = 2 * log(2) / (π * τs)
-    νs = ωs/2π
-    ν = collect(range((νs - 2*Δν), νs + 2*Δν, N))
-    Eν(ν) = exp(-4 * log(2) * (ν - νs)^2 / (Δν^2))
-    E_ν = Eν.(ν)
-    norm = NumericalIntegration.integrate(ν, E_ν)
-    E_ν ./= norm
+    if spectdata
 
-    # Define grid for wavelength sampling
-    νmin = ν[find_first(E_ν ./ maximum(E_ν), 1e-1, "e2")]
-    νmax = ν[find_last(E_ν ./ maximum(E_ν), 1e-1, "e2")]
-    ν_samples = collect(range(νmin, νmax, νsteps))
-    dν = (ν_samples[2] - ν_samples[1])
-    λ_samples = collect(c ./ reverse(ν_samples))
+        wl, I, ϕ = readSpect(fn_params, "sample-spect.txt")
+        λ_samples = collect(range(500e-9, wl[end], 65))
+        ν_samples = c ./ reverse(λ_samples)
+        dν = ν_samples[2] - ν_samples[1]
+        Iν = reverse(I.(λ_samples))
+        ϕν = reverse(ϕ.(λ_samples))
+        
+        norm = NumericalIntegration.integrate(ν_samples, sqrt.(Iν))
+        Eν_samples = sqrt.(Iν) .* exp.(1im .* ϕν) ./ norm
 
-    # Sampled spectrum + define spectral phase
-    ϕ = 0
-    Eν_samples = Eν.(ν_samples) .* exp.(1im * ϕ) ./ norm
+    else
+            
+        Δν = 2 * log(2) / (π * τs)
+        νs = ωs/2π
+        ν = collect(range((νs - 2*Δν), νs + 2*Δν, N))
+        Eν(ν) = exp(-4 * log(2) * (ν - νs)^2 / (Δν^2))
+        E_ν = Eν.(ν)
+
+        # Define grid for wavelength sampling
+        νmin = ν[find_first(E_ν ./ maximum(E_ν), 1e-1, "e2")]
+        νmax = ν[find_last(E_ν ./ maximum(E_ν), 1e-1, "e2")]
+        ν_samples = collect(range(νmin, νmax, νsteps))
+        dν = ν_samples[2] - ν_samples[1]
+        λ_samples = collect(c ./ reverse(ν_samples))
+
+        # Sampled spectrum + define spectral phase
+        norm = NumericalIntegration.integrate(ν_samples, Eν.(ν_samples))
+        ϕ = SpectralPhase(0, 0, 15, 0, 0, ν_samples, νs)
+        Eν_samples = Eν.(ν_samples) .* exp.(1im .* ϕ) ./ norm
+
+    end
+
+    
 
     # Run once to compile and save x and y vectors
-    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l, aberration=aberration, hole=hole)
+    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l, Z, aberration=aberration, hole=hole)
 
     Ex = zeros(ComplexF64, N, N, zsteps, )
     Ey = zeros(ComplexF64, N, N, zsteps)
@@ -240,28 +259,27 @@ function SpatioTemporalVectorDiffraction(fn_params::FN_Params, diff_params::Diff
 
     z = collect(range(zmin, zmax, zsteps))
 
-    foreach(eachindex(λ_samples)) do i
+    lk = Threads.SpinLock()
+    ThreadsX.foreach(CartesianIndices((νsteps, zsteps)); simd=true) do I
 
-        fn_params.λs = λ_samples[i]
+        # Spatial contribution
+        fn_params.λs = λ_samples[I[1]]
         k = 2π/fn_params.λs
         diff_params.kt = k * nt
 
         zR = π * w^2 * nt / fn_params.λs
-        
-        foreach(eachindex(z)) do I
-            Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[I], l, aberration=aberration, hole=hole)
+        Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[I[2]], l, Z, aberration=aberration, hole=hole)
 
-            # Include Gouy phase
-            ψg = (abs(l) + 1)*atan(z[I] / zR)
+        # Include Gouy phase
+        ψg = (abs(l) + 1)*atan(z[I[2]] / zR)
 
-            # Spectral Contribution
-            expν = Eν_samples[i] .* exp(1im * ψg) .* exp.(-1im * 2π * ν_samples[i] * t_now) * dν
+        # Spectral Contribution (normalized)
+        E_ν = Eν_samples[I[1]] .* exp(1im * ψg) .* exp.(-1im * 2π * ν_samples[I[1]] * t_now) * dν
 
-            # TODO create abberation function
-
-            Ex[:, :, I] .+= Ef[1] .* expν
-            Ey[:, :, I] .+= Ef[2] .* expν
-            Ez[:, :, I] .+= Ef[3] .* expν
+        lock(lk) do
+        Ex[:, :, I[2]] .+= Ef[1] .* E_ν
+        Ey[:, :, I[2]] .+= Ef[2] .* E_ν
+        Ez[:, :, I[2]] .+= Ef[3] .* E_ν
         end
 
     end
@@ -273,7 +291,7 @@ function SpatioTemporalVectorDiffraction(fn_params::FN_Params, diff_params::Diff
 end
 
 
-function SpatioTemporalLightSpringVectorDiffraction(fn_params::FN_Params, diff_params::Diffract, Pol::String, 
+function SpatioTemporalLightSpringVectorDiffraction(fn_params::FN_Params, diff_params::Diffract, Pol, 
                 zmin::Real, zmax::Real, zsteps::Int, νsteps::Int, t_now::Real, l0::Real; verbose=false, aberration=false, hole=false)
 
     @unpack N, t0, ϕ0, τs, τ, ωs, nt, λs, c = fn_params
