@@ -8,6 +8,7 @@ include("CrystalProperties.jl")
 include("EM-Field.jl")
 include("Passes.jl")
 include("Diffraction.jl")
+include("Polarization.jl")
 include("Helpers.jl")
 
 FFTW.set_provider!("fftw")

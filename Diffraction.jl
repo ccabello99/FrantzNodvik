@@ -48,155 +48,8 @@ mutable struct Diffract{T}
 end
 
 
-function Polarization(fn_params::FN_Params, diff_params::Diffract, 
-                        Pol::String; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs = fn_params
-    @unpack w, θ, ϕ, Ein = diff_params
-
-    cosθ = cos.(θ)
-    sinθ = sin.(θ)
-    cosϕ = cos.(ϕ)
-    sinϕ = sin.(ϕ)
-
-    Ex = zeros(ComplexF64, N, N)
-    Ey = zeros(ComplexF64, N, N)
-
-    if Pol == "P"
-        Ex .= Gaussian(fn_params, w, w)
-    elseif Pol == "S"
-        Ey .= Gaussian(fn_params, w, w)
-    elseif Pol == "D"
-        Ex .= Gaussian(fn_params, w, w) ./ sqrt(2)
-        Ey .= Gaussian(fn_params, w, w) ./ sqrt(2)
-    elseif Pol == "RHC"
-        Ex .= Gaussian(fn_params, w, w) ./ sqrt(2)
-        Ey .= -1im .* Gaussian(fn_params, w, w) ./ sqrt(2)
-    elseif Pol == "LHC"
-        Ex .= Gaussian(fn_params, w, w) ./ sqrt(2)
-        Ey .= 1im .* Gaussian(fn_params, w, w) ./ sqrt(2)
-    elseif Pol == "Radial"
-        Ex .= cosϕ.* Gaussian(fn_params, w, w)
-        Ey .= sinϕ .* Gaussian(fn_params, w, w)
-    elseif Pol == "Azimuthal"
-        Ex .= -sinϕ .* Gaussian(fn_params, w, w)
-        Ey .= cosϕ .* Gaussian(fn_params, w, w)
-    end
-
-    Ex = Matrix(transpose(Ex))
-    Ey = Matrix(transpose(Ey))
-
-    if aberration
-        Z = ZernikeCoefficients(0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-        Φxy_x = Zernike(fn_params, Ex, Z, 0)
-        Φxy_y = Zernike(fn_params, Ey, Z, 0)
-        Ex .*= 1im.*Φxy_x
-        Ey .*= 1im.*Φxy_y 
-    end
-
-    if hole
-        Ex = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ex)
-        Ey = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ey)
-    end
-
-
-    scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(40, λs)
-
-    # Print some useful info about initial field
-    if verbose
-        @show Pol
-        I_in = abs2.(Ex) + abs2.(Ey)
-        E_in = calcEnergy(x, y, I_in)
-        println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
-        w0_x, w0_y = e22D(x, y, I_in)
-        println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
-        println("Reflection coefficiencts are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
-    end
-
-    M00 = rp .* cosϕ.^2 .* cosθ .+ rs .* sinϕ.^2
-    M01 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
-
-    M10 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
-    M11 = rs .* cosϕ.^2 .+ rp .* sinϕ.^2 .* cosθ
-
-    M20 = -rp .* sinθ .* cosϕ
-    M21 = -rp .* sinθ .* sinϕ
-
-    Epx = M00 .* Ex .+ M01 .* Ey
-    Epy = M10 .* Ex .+ M11 .* Ey
-    Epz = M20 .* Ex .+ M21 .* Ey
-
-    return Epx, Epy, Epz
-end
-
-function Polarization(fn_params::FN_Params, diff_params::Diffract, Pol::String, 
-                        l::Real; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs = fn_params
-    @unpack w, θ, ϕ, Ein = diff_params
-
-    cosθ = cos.(θ)
-    sinθ = sin.(θ)
-    cosϕ = cos.(ϕ)
-    sinϕ = sin.(ϕ)
-
-    Ex = zeros(ComplexF64, N, N)
-    Ey = zeros(ComplexF64, N, N)
-
-    if Pol == "P"
-        Ex .= LaguerreGauss(fn_params, 0, l, 1, w)
-    elseif Pol == "S"
-        Ey .= LaguerreGauss(fn_params, 0, l, 1, w)
-    elseif Pol == "D"
-        Ex .= LaguerreGauss(fn_params, 0, l, 1, w) ./ sqrt(2)
-        Ey .= LaguerreGauss(fn_params, 0, l, 1, w) ./ sqrt(2)
-    elseif Pol == "LHC"
-        Ex .= LaguerreGauss(fn_params, 0, l, 1, w) ./ sqrt(2)
-        Ey .= -1im .* LaguerreGauss(fn_params, 0, l, 1, w) ./ sqrt(2)
-    elseif Pol == "RHC"
-        Ex .= LaguerreGauss(fn_params, 0, l, 1, w) ./ sqrt(2)
-        Ey .= 1im .* LaguerreGauss(fn_params, 0, l, 1, w) ./ sqrt(2)
-    elseif Pol == "Radial"
-        Ex .= cosϕ.* LaguerreGauss(fn_params, 0, l, 1, w)
-        Ey .= sinϕ .* LaguerreGauss(fn_params, 0, l, 1, w)
-    elseif Pol == "Azimuthal"
-        Ex .= -sinϕ .* LaguerreGauss(fn_params, 0, l, 1, w)
-        Ey .= cosϕ .* LaguerreGauss(fn_params, 0, l, 1, w)
-    end
-
-    scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(28, λs)
-
-    # Print some useful info about initial field
-    if verbose
-        @show Pol
-        println("OAM l = ", l)
-        I_in = abs2.(Ex) + abs2.(Ey)
-        E_in = calcEnergy(x, y, I_in)
-        println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
-        w0_x, w0_y = e22D(x, y, I_in)
-        println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
-        println("Reflection coefficiencts are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
-    end
-
-    M00 = rp .* cosϕ.^2 .* cosθ .+ rs .* sinϕ.^2
-    M01 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
-
-    M10 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
-    M11 = rs .* cosϕ.^2 .+ rp .* sinϕ.^2 .* cosθ
-
-    M20 = -rp .* sinθ .* cosϕ
-    M21 = -rp .* sinθ .* sinϕ
-
-    Epx = M00 .* Ex .+ M01 .* Ey
-    Epy = M10 .* Ex .+ M11 .* Ey
-    Epz = M20 .* Ex .+ M21 .* Ey
-
-    return Epx, Epy, Epz
-end
-
-
 function TransmissionFunction(fn_params::FN_Params, diff_params::Diffract, 
-                                Pol::String, l::Real; verbose=false)
+                                Pol, l::Real; verbose=false, aberration=false, hole=false)
     @unpack sinθmax, R, aperture, θ, ϕ = diff_params
     @unpack N, x, y = fn_params
     
@@ -207,9 +60,9 @@ function TransmissionFunction(fn_params::FN_Params, diff_params::Diffract,
 
     # Initialize fields and apply polarization matrix
     if l != 0
-        Epx, Epy, Epz = Polarization(fn_params, diff_params, Pol, l)
+        Epx, Epy, Epz = Polarization(fn_params, diff_params, Pol, l, aberration=aberration, hole=hole)
     else
-        Epx, Epy, Epz = Polarization(fn_params, diff_params, Pol)
+        Epx, Epy, Epz = Polarization(fn_params, diff_params, Pol, aberration=aberration, hole=hole)
     end
 
     # Apodization
@@ -237,13 +90,13 @@ function TransmissionFunction(fn_params::FN_Params, diff_params::Diffract,
 end
 
 function RichardsWolf(fn_params::FN_Params, diff_params::Diffract, 
-                        Pol::String, z::Real, l::Real; verbose=false)
+                        Pol, z::Real, l::Real; verbose=false, aberration=false, hole=false)
     @unpack sinθmax, f, R, kt, m, θ = diff_params
     @unpack N, λs, dx, dy = fn_params
 
     factor = -(1im * R^2 / (f * λs * m^2))
 
-    Etx, Ety, Etz = TransmissionFunction(fn_params, diff_params, Pol, l)
+    Etx, Ety, Etz = TransmissionFunction(fn_params, diff_params, Pol, l, aberration=aberration, hole=hole)
 
     # Fields
     Efx = zeros(ComplexF64, N, N)
@@ -255,7 +108,7 @@ function RichardsWolf(fn_params::FN_Params, diff_params::Diffract,
     expz = exp.(1im .* kt .* z .* cosθ)
 
     # For zero-padding
-    M = 2^11
+    M = 2^12
     pad_size = Int(M/2)
     if N % 2 != 0
         n = Int((N-1)/2)
@@ -322,7 +175,7 @@ function RichardsWolf(fn_params::FN_Params, diff_params::Diffract,
 end
 
 function FullSpatialProfile(fn_params::FN_Params, diff_params::Diffract, Pol::String, 
-                                zmin::Real, zmax::Real, zsteps::Int; l = 0, coeffs = 0)
+                                zmin::Real, zmax::Real, zsteps::Int; l = 0, coeffs = 0, aberration=false, hole=false)
     @unpack N, λs = fn_params
     @unpack w, nt, kt = diff_params
 
@@ -335,15 +188,13 @@ function FullSpatialProfile(fn_params::FN_Params, diff_params::Diffract, Pol::St
     zR = π * w^2 * nt / λs
 
     # Run once to compile and save x and y vectors
-    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l)
+    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l, aberration=aberration, hole=hole)
 
     foreach(eachindex(z)) do I
-        Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[I], l)
+        Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[I], l, aberration=aberration, hole=hole)
     
         # Include Gouy phase
         ψg = (abs(l) + 1)*atan(z[I] / zR)
-    
-        # TODO create abberation function
 
         Ex[:, :, I] .= Ef[1] .* exp(1im * ψg)
         Ey[:, :, I] .= Ef[2] .* exp(1im * ψg)
@@ -356,7 +207,7 @@ function FullSpatialProfile(fn_params::FN_Params, diff_params::Diffract, Pol::St
 end
 
 function SpatioTemporalVectorDiffraction(fn_params::FN_Params, diff_params::Diffract, Pol::String, 
-                zmin::Real, zmax::Real, zsteps::Int, νsteps::Int, t_now::Real, l::Real; verbose=false)
+                zmin::Real, zmax::Real, zsteps::Int, νsteps::Int, t_now::Real, l::Real; verbose=false, aberration=false, hole=false)
     @unpack N, t0, ϕ0, τs, τ, ωs, nt, c = fn_params
     @unpack nt, w = diff_params
 
@@ -381,7 +232,7 @@ function SpatioTemporalVectorDiffraction(fn_params::FN_Params, diff_params::Diff
     Eν_samples = Eν.(ν_samples) .* exp.(1im * ϕ) ./ norm
 
     # Run once to compile and save x and y vectors
-    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l)
+    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l, aberration=aberration, hole=hole)
 
     Ex = zeros(ComplexF64, N, N, zsteps, )
     Ey = zeros(ComplexF64, N, N, zsteps)
@@ -398,7 +249,7 @@ function SpatioTemporalVectorDiffraction(fn_params::FN_Params, diff_params::Diff
         zR = π * w^2 * nt / fn_params.λs
         
         foreach(eachindex(z)) do I
-            Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[I], l)
+            Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[I], l, aberration=aberration, hole=hole)
 
             # Include Gouy phase
             ψg = (abs(l) + 1)*atan(z[I] / zR)
@@ -423,7 +274,7 @@ end
 
 
 function SpatioTemporalLightSpringVectorDiffraction(fn_params::FN_Params, diff_params::Diffract, Pol::String, 
-                zmin::Real, zmax::Real, zsteps::Int, νsteps::Int, t_now::Real, l0::Real; verbose=false)
+                zmin::Real, zmax::Real, zsteps::Int, νsteps::Int, t_now::Real, l0::Real; verbose=false, aberration=false, hole=false)
 
     @unpack N, t0, ϕ0, τs, τ, ωs, nt, λs, c = fn_params
     @unpack nt, w = diff_params
@@ -470,7 +321,7 @@ function SpatioTemporalLightSpringVectorDiffraction(fn_params::FN_Params, diff_p
     end
     
     # Run once to compile and save x and y vectors
-    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, 1)
+    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, 1, aberration=aberration, hole=hole)
 
     Ex = zeros(ComplexF64, N, N, zsteps)
     Ey = zeros(ComplexF64, N, N, zsteps)
@@ -487,7 +338,7 @@ function SpatioTemporalLightSpringVectorDiffraction(fn_params::FN_Params, diff_p
         zR = π * w^2 * nt / fn_params.λs
 
         foreach(eachindex(z)) do I
-            Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[I], l_samples[i])
+            Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[I], l_samples[i], aberration=aberration, hole=hole)
 
             # Include Gouy phase
             ψg = (abs(l_samples[i]) + 1)*atan(z[I] / zR)

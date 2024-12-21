@@ -251,7 +251,7 @@ function HoleyMirror(fn_params::FN_Params, x0::Real, y0::Real, R::Real, E::Matri
 
     E[(X.^2 .+ Y.^2) .< R^2] .= 0
 
-    return Matrix(transpose(E))
+    return E
 end
 
 function readRefInd(RefInd::String)
@@ -337,11 +337,11 @@ function Zernike(fn_params::FN_Params, E::Matrix, Z::Vector, l::Real)
         4 => () -> (sqrt(3) .* (-2 .* r.^2 .+ ϵ^2 .+ 1) ./ (ϵ^2 - 1)),
         5 => () -> (sqrt(6) .* r.^2 .* sin.(2 .* ϕ) ./ sqrt(ϵ^4 + ϵ^2 + 1)),
         6 => () -> (sqrt(6) .* r.^2 .* cos.(2 .* ϕ) ./ sqrt(ϵ^4 + ϵ^2 + 1)),
-        7 => () -> (2 * sqrt(2) .* r .* (3 .* r.^2 .* (ϵ^2 + 1) - 2 * (ϵ^4 + ϵ^2 + 1)) .* sin.(ϕ) ./ sqrt((ϵ^2 - 1)^2*(ϵ^2 + 1)*(ϵ^4 + 4*ϵ^2 + 1))),
-        8 => () -> (2 * sqrt(2) .* r .* (3 .* r.^2 .* (ϵ^2 + 1) - 2 * (ϵ^4 + ϵ^2 + 1)) .* cos.(ϕ) ./ sqrt((ϵ^2 - 1)^2*(ϵ^2 + 1)*(ϵ^4 + 4*ϵ^2 + 1))),
+        7 => () -> (2 * sqrt(2) .* r .* (3 .* r.^2 .* (ϵ^2 + 1) .- 2 * (ϵ^4 + ϵ^2 + 1)) .* sin.(ϕ) ./ sqrt((ϵ^2 - 1)^2*(ϵ^2 + 1)*(ϵ^4 + 4*ϵ^2 + 1))),
+        8 => () -> (2 * sqrt(2) .* r .* (3 .* r.^2 .* (ϵ^2 + 1) .- 2 * (ϵ^4 + ϵ^2 + 1)) .* cos.(ϕ) ./ sqrt((ϵ^2 - 1)^2*(ϵ^2 + 1)*(ϵ^4 + 4*ϵ^2 + 1))),
         9 => () -> (2 * sqrt(2) .* r.^3 .* sin.(3 .* ϕ) ./ sqrt(ϵ^6 + ϵ^4 + ϵ^2 + 1)),
         10 => () -> (2 * sqrt(2) .* r.^3 .* cos.(3 .* ϕ) ./ sqrt(ϵ^6 + ϵ^4 + ϵ^2 + 1)),
-        11 => () -> (sqrt(5) * (6 .* r.^4 .- 6 * (ϵ^2 + 1) .* r.^2 .+ ϵ^4 + 4 * ϵ^2 + 1) ./ (ϵ^2 - 1)^2)
+        11 => () -> (sqrt(5) * (6 .* r.^4 .- 6 * (ϵ^2 + 1) .* r.^2 .+ ϵ^4 .+ 4 * ϵ^2 .+ 1) ./ (ϵ^2 - 1)^2)
     )
 
     Z_tot = sum(Z[i] .* Zernike_terms[i]() for i in eachindex(Z) if Z[i] != 0)
@@ -351,7 +351,7 @@ function Zernike(fn_params::FN_Params, E::Matrix, Z::Vector, l::Real)
     X, Y = meshgrid(fn_params.x, fn_params.y)
     Ab[(X.^2 .+ Y.^2) .< ϵ^2] .= 0
 
-    return Matrix(transpose(Ab))
+    return Ab
 
 end
 
@@ -638,14 +638,15 @@ function Visualize3D(Pol::String, Comp::String, fn_params::FN_Params, diff_param
     end
 end
 
-function DiffractionMovie(Pol::String, Comp::String, fn_params::FN_Params, diff_params::Diffract, 
-                            zmin::Real, zmax::Real, zsteps::Int, l::Real; save=false, intensity=true, phase=false)
+function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::Diffract, 
+                            zmin::Real, zmax::Real, zsteps::Int, l::Real; save=false, 
+                                intensity=true, phase=false, aberration=false, hole=false)
     @unpack kt, m, w = diff_params
 
     z = collect(range(zmin, zmax, zsteps))
     zR = π*w^2 / fn_params.λs
 
-    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l)
+    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l, aberration=aberration, hole=hole)
 
     It_max = maximum(abs2.(Ef[1]) .+ abs2.(Ef[2]) .+ abs2.(Ef[3]))
     Ix_max = maximum(abs2.(Ef[1]))
@@ -657,7 +658,7 @@ function DiffractionMovie(Pol::String, Comp::String, fn_params::FN_Params, diff_
     Ez_max = maximum(abs.(Ef[3]))
 
     for i in eachindex(z)
-        Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[i], l);
+        Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[i], l, aberration=aberration, hole=hole);
 
         ψg = (abs(l) + 1)*atan(z[i] / zR)
         Ef[1] .*= exp(1im * ψg)
@@ -753,7 +754,8 @@ end
 
 
 function DiffractionMovie(Pol::String, Comp::String, fn_params::FN_Params, diff_params::Diffract, 
-                            zmin::Real, zmax::Real, zsteps::Int, l::Vector, coeffs::Vector; save=false, intensity=true, phase=false)
+                            zmin::Real, zmax::Real, zsteps::Int, l::Vector, coeffs::Vector; save=false, 
+                                intensity=true, phase=false, aberration=false, hole=false)
     @unpack kt, m, w = diff_params
 
     z = collect(range(zmin, zmax, zsteps))
