@@ -136,32 +136,12 @@ function circular_aperture(fn_params::FN_Params, R::Real)
 
     aperture = zeros(Float64, N, N)
 
-    for i in 1:N, j in 1:N
-        x_diff = x[i] - x0
-        y_diff = y[j] - y0
-        if x_diff^2 + y_diff^2 <= R^2
-            aperture[i, j] = 1
-        end
-    end
+    X, Y = meshgrid(x, y)
+    x_diff = X .- x0
+    y_diff = Y .- y0
+
+    aperture[x_diff.^2 .+ y_diff.^2 .<= R^2] .= 1
     
-    return aperture
-end
-
-function smooth_circular_aperture(fn_params::FN_Params, R::Real)
-    @unpack N, x, y, dx, dy, x0, y0 = fn_params
-
-    aperture = zeros(Float64, N, N)
-    ΔR = sqrt(dx^2 + dy^2)
-
-    for i in 1:N, j in 1:N
-        x_diff = x[i] - x0
-        y_diff = y[j] - y0
-        r = sqrt(x_diff^2 + y_diff^2)
-        if x_diff^2 + y_diff^2 <= R^2
-            aperture[i, j] = 0.5 * (1 + tanh((1.5/ΔR) * (R - r)))
-        end
-    end
-
     return aperture
 end
 
@@ -178,7 +158,7 @@ function resize_symmetric(v::AbstractVector, new_size::Int)
         # Pad vector symmetrically with zeros
         pad_size = div(new_size - old_size, 2)
         padded = zeros(eltype(v), new_size)
-        padded[pad_size+1:end-pad_size] = v
+        padded[pad_size+1:end-pad_size] .= v
         return padded
     end
 end
@@ -196,7 +176,7 @@ function resize_symmetric(A::AbstractMatrix, new_size::Int)
         # Pad matrix symmetrically with zeros
         pad_size = div(new_size - old_size, 2)
         padded = zeros(eltype(A), new_size, new_size)
-        padded[pad_size+1:end-pad_size, pad_size+1:end-pad_size] = A
+        padded[pad_size+1:end-pad_size, pad_size+1:end-pad_size] .= A
         return padded
     end
 end
@@ -261,15 +241,43 @@ function e22D(x, y, A)
     return w0_x, w0_y
 end
 
-function FresnelCoefficients(θi::Real)
+function HoleyMirror(fn_params::FN_Params, x0::Real, y0::Real, R::Real, E::Matrix)
+
+    @unpack x, y = fn_params                        
+
+    X, Y = meshgrid(x, y)
+    X .-= x0
+    Y .-= y0
+
+    E[(X.^2 .+ Y.^2) .< R^2] .= 0
+
+    return Matrix(transpose(E))
+end
+
+function readRefInd(RefInd::String)
+
+    data = CSV.read(RefInd, DataFrame)
+    wl = data[!, 1]
+    n = data[!, 2]
+    κ = data[!, 3]
+
+    Respl = Spline1D(wl, n, k=3)
+    Imspl = Spline1D(wl, κ, k=3) 
+
+    𝑁(λ) = Respl(λ) + 1im * Imspl(λ)
+
+    return 𝑁
+
+end
+
+function FresnelCoefficients(θi::Real, λ0::Real)
 
     # Provide θi in degrees
-
     sinθi = sind(θi)
     cosθi = cosd(θi)
 
     # For silver mirror @ 785 nm
-    𝑁 = 0.034455 + (1im * 5.4581)
+    𝑁 = readRefInd("Ag-RefInd.csv")(λ0)
     rp = (sqrt(𝑁^2 - sinθi^2) - 𝑁^2*cosθi) / (sqrt(𝑁^2 - sinθi^2) + 𝑁^2*cosθi)
     rs = (cosθi - sqrt(𝑁^2 - sinθi^2)) / (cosθi + sqrt(𝑁^2 - sinθi^2))
 
@@ -277,6 +285,75 @@ function FresnelCoefficients(θi::Real)
 
 end
 
+function SpectralPhase(ϕ0::Real, ϕ1::Real, ϕ2::Real, ϕ3::Real, ϕ4::Real, ν::Vector, ν0::Real)
+    # Provide in units of fs, fs^2, fs^3, fs^4
+
+    ϕ = (ϕ0 .+ (ϕ1 .* (ν .- ν0)) .+ (0.5 .* ϕ2 .* (ν .- ν0).^2) 
+            .+ ((1/6) .* ϕ3 .* (ν .- ν0).^3) .+ ((1/24) .* ϕ4 .* (ν .- ν0).^4))
+
+    return ϕ
+
+end
+
+function ZernikeCoefficients(Z1::Real, Z2::Real, Z3::Real, Z4::Real, 
+                                Z5::Real, Z6::Real, Z7::Real, Z8::Real, 
+                                    Z9::Real, Z10::Real, Z11::Real)
+
+    return [Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8, Z9, Z10, Z11]
+
+end
+
+function Zernike(fn_params::FN_Params, E::Matrix, Z::Vector, l::Real)
+
+    @unpack N, dx = fn_params
+
+    if N % 2 != 0
+        m = Int((N-1)/2)
+    else
+        m = Int(N/2)
+    end
+
+    E = abs.(E) ./ maximum(abs.(E))
+    n = find_last(E[m, :], 1e-2, "e2") - find_first(E[m, :], 1e-2, "e2")
+    n = n | 1
+
+    if l != 0
+        ϵ = find_first(E[m, m:end], 1e-2, "e2") * dx
+    else
+        ϵ = 0
+    end
+
+    x = collect(range(-1, 1, n))
+    y = collect(range(-1, 1, n))
+    X, Y = meshgrid(x, y)
+
+    r = sqrt.(X.^2 .+ Y.^2)
+    ϕ = atan.(Y, X)
+    
+    Zernike_terms = Dict(
+        1 => () -> ones(size(r)),
+        2 => () -> (2 .* r .* cos.(ϕ) ./ sqrt(ϵ^2 + 1)),
+        3 => () -> (2 .* r .* sin.(ϕ) ./ sqrt(ϵ^2 + 1)),
+        4 => () -> (sqrt(3) .* (-2 .* r.^2 .+ ϵ^2 .+ 1) ./ (ϵ^2 - 1)),
+        5 => () -> (sqrt(6) .* r.^2 .* sin.(2 .* ϕ) ./ sqrt(ϵ^4 + ϵ^2 + 1)),
+        6 => () -> (sqrt(6) .* r.^2 .* cos.(2 .* ϕ) ./ sqrt(ϵ^4 + ϵ^2 + 1)),
+        7 => () -> (2 * sqrt(2) .* r .* (3 .* r.^2 .* (ϵ^2 + 1) - 2 * (ϵ^4 + ϵ^2 + 1)) .* sin.(ϕ) ./ sqrt((ϵ^2 - 1)^2*(ϵ^2 + 1)*(ϵ^4 + 4*ϵ^2 + 1))),
+        8 => () -> (2 * sqrt(2) .* r .* (3 .* r.^2 .* (ϵ^2 + 1) - 2 * (ϵ^4 + ϵ^2 + 1)) .* cos.(ϕ) ./ sqrt((ϵ^2 - 1)^2*(ϵ^2 + 1)*(ϵ^4 + 4*ϵ^2 + 1))),
+        9 => () -> (2 * sqrt(2) .* r.^3 .* sin.(3 .* ϕ) ./ sqrt(ϵ^6 + ϵ^4 + ϵ^2 + 1)),
+        10 => () -> (2 * sqrt(2) .* r.^3 .* cos.(3 .* ϕ) ./ sqrt(ϵ^6 + ϵ^4 + ϵ^2 + 1)),
+        11 => () -> (sqrt(5) * (6 .* r.^4 .- 6 * (ϵ^2 + 1) .* r.^2 .+ ϵ^4 + 4 * ϵ^2 + 1) ./ (ϵ^2 - 1)^2)
+    )
+
+    Z_tot = sum(Z[i] .* Zernike_terms[i]() for i in eachindex(Z) if Z[i] != 0)
+    Z_tot[r .> 1] .= 0
+
+    Ab = resize_symmetric(Z_tot, N)
+    X, Y = meshgrid(fn_params.x, fn_params.y)
+    Ab[(X.^2 .+ Y.^2) .< ϵ^2] .= 0
+
+    return Matrix(transpose(Ab))
+
+end
 
 function Visualize3D(Pol::String, Comp::String, fn_params::FN_Params, diff_params::Diffract, 
                         zmin::Real, zmax::Real, zsteps::Int; slicex=false, slicey=false, l = 0, 

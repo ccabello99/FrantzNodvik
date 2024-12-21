@@ -14,8 +14,6 @@ mutable struct Diffract{T}
     θ::Matrix{T}
     ϕ::Matrix{T}
 
-
-
     function Diffract{T}(fn_params::FN_Params, f::Real, fnum::Real, 
                             w::Real, nt::Real) where T
         @unpack λs, x, y, N = fn_params
@@ -29,7 +27,7 @@ mutable struct Diffract{T}
         
         Ein = 2.5e-3
 
-        aperture = smooth_circular_aperture(fn_params, R)
+        aperture = circular_aperture(fn_params, R)
         if N % 2 != 0
             n = Int((N-1)/2 + 1)
             m = Int((count(!iszero, aperture[n, :]) - 1) / 2)
@@ -51,8 +49,8 @@ end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, 
-                        Pol::String; verbose=false)
-    @unpack N, x, y = fn_params
+                        Pol::String; verbose=false, aberration=false, hole=false)
+    @unpack N, x, y, λs = fn_params
     @unpack w, θ, ϕ, Ein = diff_params
 
     cosθ = cos.(θ)
@@ -84,8 +82,25 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
         Ey .= cosϕ .* Gaussian(fn_params, w, w)
     end
 
+    Ex = Matrix(transpose(Ex))
+    Ey = Matrix(transpose(Ey))
+
+    if aberration
+        Z = ZernikeCoefficients(0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        Φxy_x = Zernike(fn_params, Ex, Z, 0)
+        Φxy_y = Zernike(fn_params, Ey, Z, 0)
+        Ex .*= 1im.*Φxy_x
+        Ey .*= 1im.*Φxy_y 
+    end
+
+    if hole
+        Ex = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ex)
+        Ey = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ey)
+    end
+
+
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(28)
+    rp, rs = FresnelCoefficients(40, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -114,9 +129,9 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     return Epx, Epy, Epz
 end
 
-function Polarization(fn_params::FN_Params, diff_params::Diffract, 
-                        Pol::String, l::Real; verbose=false)
-    @unpack N, x, y = fn_params
+function Polarization(fn_params::FN_Params, diff_params::Diffract, Pol::String, 
+                        l::Real; verbose=false, aberration=false, hole=false)
+    @unpack N, x, y, λs = fn_params
     @unpack w, θ, ϕ, Ein = diff_params
 
     cosθ = cos.(θ)
@@ -149,7 +164,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     end
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(28)
+    rp, rs = FresnelCoefficients(28, λs)
 
     # Print some useful info about initial field
     if verbose
