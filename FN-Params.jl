@@ -46,8 +46,8 @@
     # Grid size
     N::Int = 2^8 + 1
     pass::Int = 13
-    xmax::T = 52e-3
-    ymax::T = 52e-3
+    xmax::T = 60e-3
+    ymax::T = 60e-3
     zmax::T = 40e-6
     Npass::Vector{T} = collect(0:pass-1)
 

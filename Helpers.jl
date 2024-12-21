@@ -270,6 +270,7 @@ function readRefInd(RefInd::String)
 
 end
 
+# TODO include transmission coefficients
 function FresnelCoefficients(θi::Real, λ0::Real)
 
     # Provide θi in degrees
@@ -371,6 +372,56 @@ function Zernike(fn_params::FN_Params, E::Matrix, Z::Vector, l::Real)
 
     return Ab
 
+end
+
+function getPolarizationEllipse(x, y, Ex, Ey; num_ellipses=(21, 21), draw_arrow=true,
+                       amplification=0.75, color_line="white", line_width=0.5)
+    # Approach taken from https://github.com/aocg-ucm/diffractio/blob/main/diffractio/vector_fields_XY.py
+
+    intensity_max = maximum(abs.(Ex).^2 .+ abs.(Ey).^2)
+    Dx = x[end] - x[1]
+    Dy = y[end] - y[1]
+
+    size_x = Dx / num_ellipses[1]
+    size_y = Dy / num_ellipses[2]
+
+    x_centers = size_x/2 .+ size_x .* collect(0:num_ellipses[1]-1)
+    y_centers = size_y/2 .+ size_y .* collect(0:num_ellipses[2]-1)
+
+    num_x, num_y = length(x), length(y)
+    ix_centers = round.(Int, num_x / num_ellipses[1] / 2 .+ num_x / num_ellipses[1] .* collect(0:num_ellipses[1]-1))
+    iy_centers = round.(Int, num_y / num_ellipses[2] / 2 .+ num_y / num_ellipses[2] .* collect(0:num_ellipses[2]-1))
+
+    p = heatmap(x, y, abs.(Ex).^2 .+ abs.(Ey).^2, cmap=:viridis)
+
+    for (i, xi) in enumerate(ix_centers)
+        for (j, yj) in enumerate(iy_centers)
+            E0x = Ex[yj, xi]
+            E0y = Ey[yj, xi]
+
+            angles = LinRange(0, 2π, 64)
+            Ex_real = real(E0x .* exp.(1im .* angles))
+            Ey_real = real(E0y .* exp.(1im .* angles))
+
+            max_r = maximum(sqrt.(Ex_real.^2 .+ Ey_real.^2))
+            size_dim = min(size_x, size_y)
+
+            if max_r > 0 && max_r^2 > exp(-2) * intensity_max
+                Ex_real = Ex_real / max_r * size_dim * amplification / 2 .+ x[Int(xi)]
+                Ey_real = Ey_real / max_r * size_dim * amplification / 2 .+ y[Int(yj)]
+
+                plot!(Ex_real, Ey_real, color=color_line, lw=line_width, label="")
+
+                if draw_arrow
+                    quiver!([Ex_real[1]], [Ey_real[1]], 
+                            quiver=([Ex_real[1] - Ex_real[2]], [Ey_real[1] - Ey_real[2]]), 
+                            arrow=:closed, color=color_line, lw=0)
+                end
+            end
+        end
+    end
+
+    display(p)
 end
 
 function Visualize3D(Pol::String, Comp::String, fn_params::FN_Params, diff_params::Diffract, 
@@ -679,122 +730,6 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
         Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[i], l, Z, aberration=aberration, hole=hole);
 
         ψg = (abs(l) + 1)*atan(z[i] / zR)
-        Ef[1] .*= exp(1im * ψg)
-        Ef[2] .*= exp(1im * ψg)
-        Ef[3] .*= exp(1im * ψg)
-
-        if Comp == "t"
-            if (intensity == false && phase == false) || (intensity == false && phase == true)
-                break
-            end
-            p = Plots.heatmap(x.*1e6, y.*1e6, (abs2.(Ef[1]) .+ abs2.(Ef[2]) .+ abs2.(Ef[3])), ylabel="y (μm)", xlabel="x (μm)", 
-            title="It @ z = "*string(round(z[i].*1e6, digits=2))*" μm from focal plane", clims=(0, It_max))
-            if save
-                savefig(p, "It_"*string(i)*".png")
-            end
-            display(p)
-        elseif Comp == "x"
-            if intensity
-                p = Plots.heatmap(x.*1e6, y.*1e6, (abs2.(Ef[1])), ylabel="y (μm)", xlabel="x (μm)", 
-                title="Ix @ z = "*string(round(z[i].*1e6, digits=2))*" μm from focal plane", clims=(0, Ix_max))
-                if save
-                    savefig(p, "Ix_"*string(i)*".png")
-                end
-            elseif phase
-                ϕ = angle.(Ef[1])
-                mag = abs.(Ef[1])
-                ϕ[mag .< exp(-2).*maximum(mag)] .= 0
-                p = Plots.heatmap(x.*1e6, y.*1e6, ϕ, ylabel="y (μm)", xlabel="x (μm)", title="ϕx @ z = "*string(round(z[i].*1e6, digits=2))*" μm from focal plane", cmap=:jet, clims=(-π, π))
-                if save
-                    savefig(p, "phix_"*string(i)*".png")
-                end
-            else
-                p = Plots.heatmap(x.*1e6, y.*1e6, (real.(Ef[1])), ylabel="y (μm)", xlabel="x (μm)", 
-                title="Ex @ z = "*string(round(z[i].*1e6, digits=2))*" μm from focal plane", cmap=:berlin, clims=(-Ex_max, Ex_max))
-                if save
-                    savefig(p, "Ex_"*string(i)*".png")
-                end
-            end
-            display(p)
-
-        elseif Comp == "y"
-            if intensity
-                p = Plots.heatmap(x.*1e6, y.*1e6, (abs2.(Ef[2])), ylabel="y (μm)", xlabel="x (μm)", 
-                title="Iy @ z = "*string(round(z[i].*1e6, digits=2))*" μm from focal plane", clims=(0, Iy_max))
-                if save
-                    savefig(p, "Iy_"*string(i)*".png")
-                end
-            elseif phase
-                ϕ = angle.(Ef[2])
-                mag = abs.(Ef[2])
-                ϕ[mag .< exp(-2).*maximum(mag)] .= 0
-                p = Plots.heatmap(x.*1e6, y.*1e6, ϕ, ylabel="y (μm)", xlabel="x (μm)", title="ϕy @ z = "*string(round(z[i].*1e6, digits=2))*" μm from focal plane", cmap=:jet, clims=(-π, π))
-                if save
-                    savefig(p, "phiy_"*string(i)*".png")
-                end                
-            else
-                p = Plots.heatmap(x.*1e6, y.*1e6, (real.(Ef[2])), ylabel="y (μm)", xlabel="x (μm)", 
-                title="Ey @ z = "*string(round(z[i].*1e6, digits=2))*" μm from focal plane", cmap=:berlin, clims=(-Ey_max, Ey_max))
-                if save
-                    savefig(p, "Ey_"*string(i)*".png")
-                end
-            end
-            display(p)
-
-        elseif Comp == "z"
-            if intensity
-                p = Plots.heatmap(x.*1e6, y.*1e6, (abs2.(Ef[3])), ylabel="y (μm)", xlabel="x (μm)", 
-                title="Iz @ z = "*string(round(z[i].*1e6, digits=2))*" μm from focal plane", clims=(0, Iz_max))
-                if save
-                    savefig(p, "Iz_"*string(i)*".png")
-                end
-            elseif phase
-                ϕ = angle.(Ef[3])
-                mag = abs.(Ef[3])
-                ϕ[mag .< exp(-2).*maximum(mag)] .= 0
-                p = Plots.heatmap(x.*1e6, y.*1e6, ϕ, ylabel="y (μm)", xlabel="x (μm)", title="ϕz @ z = "*string(round(z[i].*1e6, digits=2))*" μm from focal plane", cmap=:jet, clims=(-π, π))
-                if save
-                    savefig(p, "phiz_"*string(i)*".png")
-                end                
-            else
-                p = Plots.heatmap(x.*1e6, y.*1e6, (real.(Ef[3])), ylabel="y (μm)", xlabel="x (μm)", 
-                title="Ez @ z = "*string(round(z[i].*1e6, digits=2))*" μm from focal plane", cmap=:berlin, clims=(-Ez_max, Ez_max))
-                if save
-                    savefig(p, "Ez_"*string(i)*".png")
-                end
-            end
-            display(p)
-            
-        end
-        
-    end
-end
-
-
-function DiffractionMovie(Pol::String, Comp::String, fn_params::FN_Params, diff_params::Diffract, 
-                            zmin::Real, zmax::Real, zsteps::Int, l::Vector, coeffs::Vector; save=false, 
-                                intensity=true, phase=false, aberration=false, hole=false)
-    @unpack kt, m, w = diff_params
-
-    z = collect(range(zmin, zmax, zsteps))
-    zR = π*w^2 / fn_params.λs
-
-    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l, coeffs)
-
-    It_max = maximum(abs2.(Ef[1]) .+ abs2.(Ef[2]) .+ abs2.(Ef[3]))
-    Ix_max = maximum(abs2.(Ef[1]))
-    Iy_max = maximum(abs2.(Ef[2]))
-    Iz_max = maximum(abs2.(Ef[3]))
-
-    Ex_max = maximum(abs.(Ef[1]))
-    Ey_max = maximum(abs.(Ef[2]))
-    Ez_max = maximum(abs.(Ef[3]))
-
-    for i in eachindex(z)
-        Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[i], l, coeffs);
-
-        #ψg = (abs(l) + 1)*atan(z[i] / zR)
-        ψg = 0
         Ef[1] .*= exp(1im * ψg)
         Ef[2] .*= exp(1im * ψg)
         Ef[3] .*= exp(1im * ψg)

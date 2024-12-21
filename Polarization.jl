@@ -31,7 +31,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     end
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(40, λs)
+    rp, rs = FresnelCoefficients(28, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -87,7 +87,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(40, λs)
+    rp, rs = FresnelCoefficients(28, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -146,7 +146,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     end
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(40, λs)
+    rp, rs = FresnelCoefficients(28, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -206,7 +206,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(40, λs)
+    rp, rs = FresnelCoefficients(28, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -266,7 +266,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(40, λs)
+    rp, rs = FresnelCoefficients(28, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -326,7 +326,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(40, λs)
+    rp, rs = FresnelCoefficients(28, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -386,7 +386,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(40, λs)
+    rp, rs = FresnelCoefficients(28, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -440,7 +440,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
     end
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(40, λs)
+    rp, rs = FresnelCoefficients(28, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -496,7 +496,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(40, λs)
+    rp, rs = FresnelCoefficients(28, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -555,7 +555,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
     end
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(40, λs)
+    rp, rs = FresnelCoefficients(28, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -615,7 +615,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(40, λs)
+    rp, rs = FresnelCoefficients(28, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -675,7 +675,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(40, λs)
+    rp, rs = FresnelCoefficients(28, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -735,7 +735,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(40, λs)
+    rp, rs = FresnelCoefficients(28, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -795,7 +795,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(40, λs)
+    rp, rs = FresnelCoefficients(28, λs)
 
     # Print some useful info about initial field
     if verbose
