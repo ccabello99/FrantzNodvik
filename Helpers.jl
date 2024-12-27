@@ -374,11 +374,13 @@ function Zernike(fn_params::FN_Params, E::Matrix, Z::Vector, l::Real)
 
 end
 
-function getPolarizationEllipse(x, y, Ex, Ey; num_ellipses=(21, 21), draw_arrow=true,
+function getPolarizationEllipse2D(x, y, Ex, Ey; num_ellipses=(21, 21), draw_arrow=true,
                        amplification=0.75, color_line="white", line_width=0.5)
     # Approach taken from https://github.com/aocg-ucm/diffractio/blob/main/diffractio/vector_fields_XY.py
 
     intensity_max = maximum(abs.(Ex).^2 .+ abs.(Ey).^2)
+    x .*= 1e6
+    y .*= 1e6
     Dx = x[end] - x[1]
     Dy = y[end] - y[1]
 
@@ -392,7 +394,11 @@ function getPolarizationEllipse(x, y, Ex, Ey; num_ellipses=(21, 21), draw_arrow=
     ix_centers = round.(Int, num_x / num_ellipses[1] / 2 .+ num_x / num_ellipses[1] .* collect(0:num_ellipses[1]-1))
     iy_centers = round.(Int, num_y / num_ellipses[2] / 2 .+ num_y / num_ellipses[2] .* collect(0:num_ellipses[2]-1))
 
-    p = heatmap(x, y, abs.(Ex).^2 .+ abs.(Ey).^2, cmap=:viridis)
+    fig, ax1, hm1 = CairoMakie.heatmap(x, y, abs.(Ex).^2 .+ abs.(Ey).^2)
+    ax1.xlabel = L"\textbf{x (μm)}"
+    ax1.ylabel = L"\textbf{y (μm)}"
+    cb = CairoMakie.Colorbar(fig[1, 2], hm1, size=30;
+        label = L"\textbf{Peak Intensity (arb. u.)}")
 
     for (i, xi) in enumerate(ix_centers)
         for (j, yj) in enumerate(iy_centers)
@@ -410,18 +416,22 @@ function getPolarizationEllipse(x, y, Ex, Ey; num_ellipses=(21, 21), draw_arrow=
                 Ex_real = Ex_real / max_r * size_dim * amplification / 2 .+ x[Int(xi)]
                 Ey_real = Ey_real / max_r * size_dim * amplification / 2 .+ y[Int(yj)]
 
-                plot!(Ex_real, Ey_real, color=color_line, lw=line_width, label="")
+                lines!(ax1, Ex_real, Ey_real, color=color_line, linewidth=line_width, label="")
 
                 if draw_arrow
-                    quiver!([Ex_real[1]], [Ey_real[1]], 
-                            quiver=([Ex_real[1] - Ex_real[2]], [Ey_real[1] - Ey_real[2]]), 
-                            arrow=:closed, color=color_line, lw=0)
+                    arrows!(ax1, [Ex_real[1]], [Ey_real[1]], [Ex_real[1] - Ex_real[2]], 
+                    [Ey_real[1] - Ey_real[2]], arrowsize = 8, color=color_line, linewidth=0)
+                    #arrowcolor = strength, linecolor = strength)
+                
+                    #quiver!([Ex_real[1]], [Ey_real[1]], 
+                    #        quiver=([Ex_real[1] - Ex_real[2]], [Ey_real[1] - Ey_real[2]]), 
+                    #        arrow=:closed, color=color_line, lw=0)
                 end
             end
         end
     end
 
-    display(p)
+    fig
 end
 
 function Visualize3D(Pol::String, Comp::String, fn_params::FN_Params, diff_params::Diffract, 
@@ -819,6 +829,379 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
         end
         
     end
+end
+
+function DiffractionMovie(Comp::String, Ex::Array, Ey::Array, Ez::Array, 
+                            x::Vector, y::Vector, z::Vector; intensity=true, save=false)
+
+    
+    Ex = Matrix(transpose(Ex))
+    Ey = Matrix(transpose(Ey))
+    Ez = Matrix(transpose(Ez))
+
+    if Comp == "t"
+        I_tot = abs2.(Ex) .+ abs2.(Ey) .+ abs2.(Ez)
+
+        foreach(eachindex(z)) do i
+            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, I_tot[:, :, i])
+            ax.xlabel = L"\textbf{x (μm)}"
+            ax.ylabel = L"\textbf{y (μm)}"
+            ax.title = "Total intensity @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
+            cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Peak intensity (arb. u)}")
+            display(fig)
+            if save
+                Makie.save("Itot_z"*string(z[i])*".png", fig)
+            end
+        end
+
+    elseif Comp == "x"
+        if intensity
+            Ix = abs2.(Ex)
+
+            foreach(eachindex(z)) do i
+                fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, Ix[:, :, i])
+                ax.xlabel = L"\textbf{x (μm)}"
+                ax.ylabel = L"\textbf{y (μm)}"
+                ax.title = "Intensity (x-comp.) @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
+                cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Peak intensity (arb. u)}")
+                display(fig)
+                if save
+                    Makie.save("Ix_z"*string(z[i])*".png", fig)
+                end
+            end
+        else
+
+            foreach(eachindex(z)) do i
+                fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, real.(Ex)[:, :, i])
+                ax.xlabel = L"\textbf{x (μm)}"
+                ax.ylabel = L"\textbf{y (μm)}"
+                ax.title = "Electric field (x-comp.) @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
+                cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Field strength (arb. u)}")
+                display(fig)
+                if save
+                    Makie.save("Ex_z"*string(z[i])*".png", fig)
+                end
+            end
+        end
+
+    elseif Comp == "y"
+        if intensity
+            Iy = abs2.(Ey)
+
+            foreach(eachindex(z)) do i
+                fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, Iy[:, :, i])
+                ax.xlabel = L"\textbf{x (μm)}"
+                ax.ylabel = L"\textbf{y (μm)}"
+                ax.title = "Intensity (y-comp.) @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
+                cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Peak intensity (arb. u)}")
+                display(fig)
+                if save
+                    Makie.save("Iy_z"*string(z[i])*".png", fig)
+                end
+            end
+        else
+
+            foreach(eachindex(z)) do i
+                fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, real.(Ey)[:, :, i])
+                ax.xlabel = L"\textbf{x (μm)}"
+                ax.ylabel = L"\textbf{y (μm)}"
+                ax.title = "Electric field (y-comp.) @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
+                cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Field strength (arb. u)}")
+                display(fig)
+                if save
+                    Makie.save("Ey_z"*string(z[i])*".png", fig)
+                end
+            end
+        end
+
+    elseif Comp == "z"
+        if intensity
+            Iz = abs2.(Ez)
+
+            foreach(eachindex(z)) do i
+                fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, Iz[:, :, i])
+                ax.xlabel = L"\textbf{x (μm)}"
+                ax.ylabel = L"\textbf{y (μm)}"
+                ax.title = "Intensity (z-comp.) @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
+                cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Peak intensity (arb. u)}")
+                display(fig)
+                if save
+                    Makie.save("Iz_z"*string(z[i])*".png", fig)
+                end
+            end
+        else
+
+            foreach(eachindex(z)) do i
+                fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, real.(Ez)[:, :, i])
+                ax.xlabel = L"\textbf{x (μm)}"
+                ax.ylabel = L"\textbf{y (μm)}"
+                ax.title = "Electric field (z-comp.) @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
+                cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Field strength (arb. u)}")
+                display(fig)
+                if save
+                    Makie.save("Ez_z"*string(z[i])*".png", fig)
+                end
+            end
+        end
+
+    end
+
+end
+
+function XZSlices(Comp::String, Ex::Array, Ey::Array, Ez::Array, 
+                            x::Vector, y::Vector, z::Vector; l=0, intensity=true, 
+                            save=false, verbose=true)
+
+    if verbose
+        open("output.txt", "w") do io
+            NA = 1 / (2 * diff_params.fnum)
+            println(io, "Numerical aperture of system = ", round(NA, digits=2))
+    
+            I_focus = abs2.(Ex[:, :, 33]) .+ abs2.(Ey[:, :, 33]) .+ abs2.(Ez[:, :, 33])
+            E_focus = calcEnergy(x, y, I_focus)
+            println(io, "Energy @ focus = ", round(E_focus * 1e3, digits=3), " mJ")
+    
+            w0_x, w0_y = FWHM2D(x, y, I_focus)
+            println(io, "Beam spot size (FWHM) @ focus =", round(w0_x*1e6, digits=2), " µm x ", round(w0_y*1e6, digits=2), " µm")
+    
+            Aeff = calcAeff(x, y, I_focus)
+            println(io, "Effective area = ", round(Aeff*1e12, digits=2), " µm^2")
+    
+            Ppeak = 0.94 * E_focus / 3.8e-15
+            if l == 0
+                I_target = 2 * Ppeak / Aeff
+            else
+                I_target = Ppeak / Aeff
+            end
+            println(io, "Peak intensity @ focus = ", round(I_target * 1e-4, digits=3), " W/cm^2")
+    
+            println(io, "Ratio of peak Ix to I_tot = ", maximum(abs2.(Ex[:, :, 33])) ./ maximum(I_focus))
+            println(io, "Ratio of peak Iy to I_tot = ", maximum(abs2.(Ey[:, :, 33])) ./ maximum(I_focus))
+            println(io, "Ratio of peak Iz to I_tot = ", maximum(abs2.(Ez[:, :, 33])) ./ maximum(I_focus))
+        end
+    end
+
+    if Comp == "t"
+        I_tot = abs2.(Ex) .+ abs2.(Ey) .+ abs2.(Ez)
+        
+        fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(I_tot[:, 129, :]))
+        ax.xlabel = L"\textbf{z (μm)}"
+        ax.ylabel = L"\textbf{x (μm)}"
+        ax.title = "Total intensity"
+        cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Peak intensity (arb. u)}")
+        display(fig)
+        if save
+            Makie.save("Itot_xz.png", fig)
+        end
+
+    elseif Comp == "x"
+        if intensity
+            Ix = abs2.(Ex)
+
+            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(Ix[:, 129, :]))
+            ax.xlabel = L"\textbf{z (μm)}"
+            ax.ylabel = L"\textbf{x (μm)}"
+            ax.title = "Intensity (x-comp.)"
+            cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Peak intensity (arb. u)}")
+            display(fig)
+            if save
+                Makie.save("Ix_xz.png", fig)
+            end
+        else
+
+            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(real.(Ex)[:, 129, :]), colormap=:RdBu)
+            ax.xlabel = L"\textbf{z (μm)}"
+            ax.ylabel = L"\textbf{x (μm)}"
+            ax.title = "Electric field (x-comp.)"
+            cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Field strength (arb. u)}")
+            display(fig)
+            if save
+                Makie.save("Ex_xz.png", fig)
+            end
+        end
+
+    elseif Comp == "y"
+        if intensity
+            Iy = abs2.(Ey)
+
+            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(Iy[:, 129, :]))
+            ax.xlabel = L"\textbf{z (μm)}"
+            ax.ylabel = L"\textbf{x (μm)}"
+            ax.title = "Intensity (y-comp.)"
+            cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Peak intensity (arb. u)}")
+            display(fig)
+            if save
+                Makie.save("Iy_xz.png", fig)
+            end
+        else
+
+            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(real.(Ey)[:, 129, :]), colormap=:RdBu)
+            ax.xlabel = L"\textbf{z (μm)}"
+            ax.ylabel = L"\textbf{x (μm)}"
+            ax.title = "Electric field (y-comp.)"
+            cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Field strength (arb. u)}")
+            display(fig)
+            if save
+                Makie.save("Ey_xz.png", fig)
+            end
+        end
+
+    elseif Comp == "z"
+        if intensity
+            Iz = abs2.(Ez)
+
+            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(Iz[:, 129, :]))
+            ax.xlabel = L"\textbf{z (μm)}"
+            ax.ylabel = L"\textbf{x (μm)}"
+            ax.title = "Intensity (z-comp.)"
+            cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Peak intensity (arb. u)}")
+            display(fig)
+            if save
+                Makie.save("Iz_xz.png", fig)
+            end
+        else
+
+            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(real.(Ez)[:, 129, :]), colormap=:RdBu)
+            ax.xlabel = L"\textbf{z (μm)}"
+            ax.ylabel = L"\textbf{x (μm)}"
+            ax.title = "Electric field (z-comp.)"
+            cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Field strength (arb. u)}")
+            display(fig)
+            if save
+                Makie.save("Ez_xz.png", fig)
+            end
+        end
+
+    end
+
+end
+
+function YZSlices(Comp::String, Ex::Array, Ey::Array, Ez::Array, 
+                            x::Vector, y::Vector, z::Vector; l=0, intensity=true, 
+                            save=false, verbose=true)
+
+    if verbose
+        open("output.txt", "w") do io
+            NA = 1 / (2 * diff_params.fnum)
+            println(io, "Numerical aperture of system = ", round(NA, digits=2))
+    
+            I_focus = abs2.(Ex[:, :, 33]) .+ abs2.(Ey[:, :, 33]) .+ abs2.(Ez[:, :, 33])
+            E_focus = calcEnergy(x, y, I_focus)
+            println(io, "Energy @ focus = ", round(E_focus * 1e3, digits=3), " mJ")
+    
+            w0_x, w0_y = FWHM2D(x, y, I_focus)
+            println(io, "Beam spot size (FWHM) @ focus =", round(w0_x*1e6, digits=2), " µm x ", round(w0_y*1e6, digits=2), " µm")
+    
+            Aeff = calcAeff(x, y, I_focus)
+            println(io, "Effective area = ", round(Aeff*1e12, digits=2), " µm^2")
+    
+            Ppeak = 0.94 * E_focus / 3.8e-15
+            if l == 0
+                I_target = 2 * Ppeak / Aeff
+            else
+                I_target = Ppeak / Aeff
+            end
+            println(io, "Peak intensity @ focus = ", round(I_target * 1e-4, digits=3), " W/cm^2")
+    
+            println(io, "Ratio of peak Ix to I_tot = ", maximum(abs2.(Ex[:, :, 33])) ./ maximum(I_focus))
+            println(io, "Ratio of peak Iy to I_tot = ", maximum(abs2.(Ey[:, :, 33])) ./ maximum(I_focus))
+            println(io, "Ratio of peak Iz to I_tot = ", maximum(abs2.(Ez[:, :, 33])) ./ maximum(I_focus))
+        end
+    end
+
+    if Comp == "t"
+        I_tot = abs2.(Ex) .+ abs2.(Ey) .+ abs2.(Ez)
+        
+        fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(I_tot[129, :, :]))
+        ax.xlabel = L"\textbf{z (μm)}"
+        ax.ylabel = L"\textbf{y (μm)}"
+        ax.title = "Total intensity"
+        cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Peak intensity (arb. u)}")
+        display(fig)
+        if save
+            Makie.save("Itot_yz.png", fig)
+        end
+
+    elseif Comp == "x"
+        if intensity
+            Ix = abs2.(Ex)
+
+            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(Ix[129, :, :]))
+            ax.xlabel = L"\textbf{z (μm)}"
+            ax.ylabel = L"\textbf{y (μm)}"
+            ax.title = "Intensity (x-comp.)"
+            cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Peak intensity (arb. u)}")
+            display(fig)
+            if save
+                Makie.save("Ix_yz.png", fig)
+            end
+        else
+
+            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(real.(Ex)[129, :, :]), colormap=:RdBu)
+            ax.xlabel = L"\textbf{z (μm)}"
+            ax.ylabel = L"\textbf{y (μm)}"
+            ax.title = "Electric field (x-comp.)"
+            cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Field strength (arb. u)}")
+            display(fig)
+            if save
+                Makie.save("Ex_yz.png", fig)
+            end
+        end
+
+    elseif Comp == "y"
+        if intensity
+            Iy = abs2.(Ey)
+
+            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(Iy[129, :, :]))
+            ax.xlabel = L"\textbf{z (μm)}"
+            ax.ylabel = L"\textbf{y (μm)}"
+            ax.title = "Intensity (y-comp.)"
+            cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Peak intensity (arb. u)}")
+            display(fig)
+            if save
+                Makie.save("Iy_yz.png", fig)
+            end
+        else
+
+            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(real.(Ey)[129, :, :]), colormap=:RdBu)
+            ax.xlabel = L"\textbf{z (μm)}"
+            ax.ylabel = L"\textbf{y (μm)}"
+            ax.title = "Electric field (y-comp.)"
+            cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Field strength (arb. u)}")
+            display(fig)
+            if save
+                Makie.save("Ey_yz.png", fig)
+            end
+        end
+
+    elseif Comp == "z"
+        if intensity
+            Iz = abs2.(Ez)
+
+            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(Iz[129, :, :]))
+            ax.xlabel = L"\textbf{z (μm)}"
+            ax.ylabel = L"\textbf{y (μm)}"
+            ax.title = "Intensity (z-comp.)"
+            cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Peak intensity (arb. u)}")
+            display(fig)
+            if save
+                Makie.save("Iz_yz.png", fig)
+            end
+        else
+
+            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(real.(Ez)[129, :, :]), colormap=:RdBu)
+            ax.xlabel = L"\textbf{z (μm)}"
+            ax.ylabel = L"\textbf{y (μm)}"
+            ax.title = "Electric field (z-comp.)"
+            cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Field strength (arb. u)}")
+            display(fig)
+            if save
+                Makie.save("Ez_yz.png", fig)
+            end
+        end
+
+    end
+
 end
 
 

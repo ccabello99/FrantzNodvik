@@ -90,7 +90,9 @@ function TransmissionFunction(fn_params::FN_Params, diff_params::Diffract,
 end
 
 function RichardsWolf(fn_params::FN_Params, diff_params::Diffract, 
-                        Pol, z::Real, l::Real, Z::Vector; verbose=false, aberration=false, hole=false)
+                        Pol, z::Real, l::Real, Z::Vector; fft_plan=false, 
+                        verbose=false, aberration=false, hole=false,
+                        fft_plan_vert=nothing, fft_plan_hor=nothing)
     @unpack sinθmax, f, R, kt, m, θ = diff_params
     @unpack N, λs, dx, dy = fn_params
 
@@ -119,21 +121,43 @@ function RichardsWolf(fn_params::FN_Params, diff_params::Diffract,
     end
 
     # Compute 2D FFT one dimension at a time
-    Etx_vertpad = zeropad_vertical(Etx .* expz ./ cosθ, pad_size)
-    Ety_vertpad = zeropad_vertical(Ety .* expz ./ cosθ, pad_size)
-    Etz_vertpad = zeropad_vertical(Etz .* expz ./ cosθ, pad_size)
+    if fft_plan
 
-    tempx = fftshift(fft(fftshift(Etx_vertpad, 1), 1), 1)
-    tempy = fftshift(fft(fftshift(Ety_vertpad, 1), 1), 1)
-    tempz = fftshift(fft(fftshift(Etz_vertpad, 1), 1), 1)
+        Etx_vertpad = zeropad_vertical(Etx .* expz ./ cosθ, pad_size)
+        Ety_vertpad = zeropad_vertical(Ety .* expz ./ cosθ, pad_size)
+        Etz_vertpad = zeropad_vertical(Etz .* expz ./ cosθ, pad_size)
 
-    tempx_horpad = zeropad_horizontal(tempx[pad_range, :], pad_size)
-    tempy_horpad = zeropad_horizontal(tempy[pad_range, :], pad_size)
-    tempz_horpad = zeropad_horizontal(tempz[pad_range, :], pad_size)
+        tempx = fftshift(fft_plan_vert * fftshift(Etx_vertpad, 1), 1)
+        tempy = fftshift(fft_plan_vert * fftshift(Ety_vertpad, 1), 1)
+        tempz = fftshift(fft_plan_vert * fftshift(Etz_vertpad, 1), 1)
 
-    Efx .= factor .* fftshift(fft(fftshift(tempx_horpad, 2), 2), 2)[:, pad_range]
-    Efy .= factor .* fftshift(fft(fftshift(tempy_horpad, 2), 2), 2)[:, pad_range]
-    Efz .= factor .* fftshift(fft(fftshift(tempz_horpad, 2), 2), 2)[:, pad_range]
+        tempx_horpad = zeropad_horizontal(tempx[pad_range, :], pad_size)
+        tempy_horpad = zeropad_horizontal(tempy[pad_range, :], pad_size)
+        tempz_horpad = zeropad_horizontal(tempz[pad_range, :], pad_size)
+
+        Efx .= factor .* fftshift(fft_plan_hor * fftshift(tempx_horpad, 2), 2)[:, pad_range]
+        Efy .= factor .* fftshift(fft_plan_hor * fftshift(tempy_horpad, 2), 2)[:, pad_range]
+        Efz .= factor .* fftshift(fft_plan_hor * fftshift(tempz_horpad, 2), 2)[:, pad_range]
+
+    else
+
+        Etx_vertpad = zeropad_vertical(Etx .* expz ./ cosθ, pad_size)
+        Ety_vertpad = zeropad_vertical(Ety .* expz ./ cosθ, pad_size)
+        Etz_vertpad = zeropad_vertical(Etz .* expz ./ cosθ, pad_size)
+
+        tempx = fftshift(fft(fftshift(Etx_vertpad, 1), 1), 1)
+        tempy = fftshift(fft(fftshift(Ety_vertpad, 1), 1), 1)
+        tempz = fftshift(fft(fftshift(Etz_vertpad, 1), 1), 1)
+
+        tempx_horpad = zeropad_horizontal(tempx[pad_range, :], pad_size)
+        tempy_horpad = zeropad_horizontal(tempy[pad_range, :], pad_size)
+        tempz_horpad = zeropad_horizontal(tempz[pad_range, :], pad_size)
+
+        Efx .= factor .* fftshift(fft(fftshift(tempx_horpad, 2), 2), 2)[:, pad_range]
+        Efy .= factor .* fftshift(fft(fftshift(tempy_horpad, 2), 2), 2)[:, pad_range]
+        Efz .= factor .* fftshift(fft(fftshift(tempz_horpad, 2), 2), 2)[:, pad_range]
+
+    end
 
     Efx .= Matrix(transpose(Efx))
     Efy .= Matrix(transpose(Efy))
@@ -181,18 +205,26 @@ function FullSpatialProfile(fn_params::FN_Params, diff_params::Diffract, Pol,
     @unpack w, nt, kt = diff_params
 
     z = collect(range(zmin, zmax, zsteps))
+    zR = π * w^2 * nt / λs
 
+    # Fields
     Ex = zeros(ComplexF64, N, N, zsteps)
     Ey = zeros(ComplexF64, N, N, zsteps)
     Ez = zeros(ComplexF64, N, N, zsteps)
 
-    zR = π * w^2 * nt / λs
+    # Create fft plan
+    M = 2^13
+    pad_size = Int(M/2)
+    fft_plan_vert = plan_fft(zeropad_vertical(Ex[:, :, 33], pad_size), 1; flags=FFTW.MEASURE)
+    fft_plan_hor = plan_fft(zeropad_horizontal(Ex[:, :, 33], pad_size), 2; flags=FFTW.MEASURE)
 
     # Run once to compile and save x and y vectors
-    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l, Z, aberration=aberration, hole=hole)
+    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l, Z, 
+                aberration=aberration, hole=hole, fft_plan=true,
+                fft_plan_vert=fft_plan_vert, fft_plan_hor=fft_plan_hor)
 
     foreach(eachindex(z)) do I
-        Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[I], l, Z, aberration=aberration, hole=hole)
+        Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[I], l, Z, aberration=aberration, hole=hole, fft_plan=fft_plan)
     
         # Include Gouy phase
         ψg = (abs(l) + 1)*atan(z[I] / zR)
@@ -248,26 +280,33 @@ function SpatioTemporalVectorDiffraction(fn_params::FN_Params, diff_params::Diff
 
     end
 
-    
-
-    # Run once to compile and save x and y vectors
-    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l, Z, aberration=aberration, hole=hole)
-
-    Ex = zeros(ComplexF64, N, N, zsteps, )
+    Ex = zeros(ComplexF64, N, N, zsteps)
     Ey = zeros(ComplexF64, N, N, zsteps)
     Ez = zeros(ComplexF64, N, N, zsteps)
 
+    # Create fft plan
+    M = 2^13
+    pad_size = Int(M/2)
+    fft_plan_vert = plan_fft(zeropad_vertical(Ex[:, :, 33], pad_size), 1; flags=FFTW.MEASURE)
+    fft_plan_hor = plan_fft(zeropad_horizontal(Ex[:, :, 33], pad_size), 2; flags=FFTW.MEASURE)
+
+    # Run once to compile and save x and y vectors
+    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l, Z, 
+                aberration=aberration, hole=hole, fft_plan=true,
+                fft_plan_vert=fft_plan_vert, fft_plan_hor=fft_plan_hor)
+
     z = collect(range(zmin, zmax, zsteps))
 
-    lk = Threads.SpinLock()
-    ThreadsX.foreach(CartesianIndices((νsteps, zsteps)); simd=true) do I
+    foreach(CartesianIndices((νsteps, zsteps))) do I
 
         # Spatial contribution
         fn_params.λs = λ_samples[I[1]]
         k = 2π/fn_params.λs
         diff_params.kt = k * nt
         zR = π * w^2 * nt / fn_params.λs
-        Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[I[2]], l, Z, aberration=aberration, hole=hole)
+        Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[I[2]], l, Z, 
+                    aberration=aberration, hole=hole, fft_plan=true,
+                    fft_plan_vert=fft_plan_vert, fft_plan_hor=fft_plan_hor)
 
         # Include Gouy phase
         ψg = (abs(l) + 1)*atan(z[I[2]] / zR)
@@ -275,11 +314,10 @@ function SpatioTemporalVectorDiffraction(fn_params::FN_Params, diff_params::Diff
         # Spectral Contribution (normalized)
         E_ν = Eν_samples[I[1]] .* exp(1im * ψg) .* exp.(-1im * 2π * ν_samples[I[1]] * t_now) * dν
 
-        lock(lk) do
-            Ex[:, :, I[2]] .+= Ef[1] .* E_ν
-            Ey[:, :, I[2]] .+= Ef[2] .* E_ν
-            Ez[:, :, I[2]] .+= Ef[3] .* E_ν
-        end
+        Ex[:, :, I[2]] .+= Ef[1] .* E_ν
+        Ey[:, :, I[2]] .+= Ef[2] .* E_ν
+        Ez[:, :, I[2]] .+= Ef[3] .* E_ν
+
 
     end
 
@@ -352,25 +390,34 @@ function SpatioTemporalLightSpringVectorDiffraction(fn_params::FN_Params, diff_p
         scatter!(ax2, ν_samples.*1e-15, l_samples, color="red")
         display(p)
     end
-    
-    # Run once to compile and save x and y vectors
-    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, 1, Z, aberration=aberration, hole=hole)
 
     Ex = zeros(ComplexF64, N, N, zsteps)
     Ey = zeros(ComplexF64, N, N, zsteps)
     Ez = zeros(ComplexF64, N, N, zsteps)
 
+    # Create fft plan
+    M = 2^13
+    pad_size = Int(M/2)
+    fft_plan_vert = plan_fft(zeropad_vertical(Ex[:, :, 33], pad_size), 1; flags=FFTW.MEASURE)
+    fft_plan_hor = plan_fft(zeropad_horizontal(Ex[:, :, 33], pad_size), 2; flags=FFTW.MEASURE)
+
+    # Run once to compile and save x and y vectors
+    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l, Z, 
+                aberration=aberration, hole=hole, fft_plan=true,
+                fft_plan_vert=fft_plan_vert, fft_plan_hor=fft_plan_hor)
+
     z = collect(range(zmin, zmax, zsteps))
 
-    lk = Threads.SpinLock()
-    ThreadsX.foreach(CartesianIndices((νsteps, zsteps)); simd=true) do I
+    foreach(CartesianIndices((νsteps, zsteps))) do I
 
         # Spatial contribution
         fn_params.λs = λ_samples[I[1]]
         k = 2π/fn_params.λs
         diff_params.kt = k * nt
         zR = π * w^2 * nt / fn_params.λs
-        Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[I], l_samples[i], Z, aberration=aberration, hole=hole)
+        Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[I[2]], l, Z, 
+                    aberration=aberration, hole=hole, fft_plan=true,
+                    fft_plan_vert=fft_plan_vert, fft_plan_hor=fft_plan_hor)
 
         # Include Gouy phase
         ψg = (abs(l_samples[I[1]]) + 1)*atan(z[I[2]] / zR)
@@ -378,11 +425,10 @@ function SpatioTemporalLightSpringVectorDiffraction(fn_params::FN_Params, diff_p
         # Spectral Contribution
         E_ν = Eν_samples[I[1]] .* exp(1im * ψg) .* exp.(-1im * 2π * ν_samples[I[1]] * t_now) * dν
 
-        lock(lk) do
-            Ex[:, :, I[2]] .+= Ef[1] .* E_ν
-            Ey[:, :, I[2]] .+= Ef[2] .* E_ν
-            Ez[:, :, I[2]] .+= Ef[3] .* E_ν
-        end
+        Ex[:, :, I[2]] .+= Ef[1] .* E_ν
+        Ey[:, :, I[2]] .+= Ef[2] .* E_ν
+        Ez[:, :, I[2]] .+= Ef[3] .* E_ν
+
 
     end
 
