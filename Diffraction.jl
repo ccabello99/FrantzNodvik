@@ -328,14 +328,15 @@ function SpatioTemporalVectorDiffraction(fn_params::FN_Params, diff_params::Diff
 end
 
 
-function SpatioTemporalLightSpringVectorDiffraction(fn_params::FN_Params, diff_params::Diffract, Pol, 
-                zmin::Real, zmax::Real, zsteps::Int, νsteps::Int, t_now::Real, l0::Real, Z::Vector; 
+function SpatioTemporalVectorDiffraction(fn_params::FN_Params, diff_params::Diffract, Pol, 
+                zmin::Real, zmax::Real, zsteps::Int, νsteps::Int, t_now::Real, l0::Real, l_var::String, Z::Vector; 
                 verbose=false, aberration=false, hole=false, spectdata=false)
 
     @unpack N, t0, ϕ0, τs, τ, ωs, nt, λs, c = fn_params
     @unpack nt, w = diff_params
 
     # Define spectral profile
+    νs = ωs/2π
     if spectdata
 
         wl, I, ϕ = readSpect(fn_params, "sample-spect.txt")
@@ -347,11 +348,12 @@ function SpatioTemporalLightSpringVectorDiffraction(fn_params::FN_Params, diff_p
         
         norm = NumericalIntegration.integrate(ν_samples, sqrt.(Iν))
         Eν_samples = sqrt.(Iν) .* exp.(1im .* ϕν) ./ norm
+        νmin = ν_samples[find_first(abs.(Eν_samples) ./ maximum(abs.(Eν_samples)), 1e-1, "e2")]
+        νmax = ν_samples[find_last(abs.(Eν_samples) ./ maximum(abs.(Eν_samples)), 1e-1, "e2")]
 
     else
             
         Δν = 2 * log(2) / (π * τs)
-        νs = ωs/2π
         ν = collect(range((νs - 2*Δν), νs + 2*Δν, N))
         Eν(ν) = exp(-4 * log(2) * (ν - νs)^2 / (Δν^2))
         E_ν = Eν.(ν)
@@ -369,27 +371,35 @@ function SpatioTemporalLightSpringVectorDiffraction(fn_params::FN_Params, diff_p
         Eν_samples = Eν.(ν_samples) .* exp.(1im .* ϕ) ./ norm
 
     end
+    
+    if l_var == "constant"
+        # Case where OAM = l0 across entire bandwidth
+        l = ν -> l0
+    elseif l_var == "harmonic"
+        # Case where OAM = n*l0 for n ~ harmonic order
+        l = ν -> l0 * (ν / νs)
+    else
+        error("Unknown OAM variation: $l_var")
+    end
 
-    # Case where OAM = n*l0 for n ~ harmonic order    
-    l(ν) = l0 * (ν / νs)
     l_samples = round.(l.(ν_samples), digits=3)
 
-
     if verbose
-        println("Spectral width = ", round(FWHM(ν, E_ν) * λs^2 / c * 1e9, digits=2), " nm")
+        println("Spectral width = ", round(FWHM(ν_samples, abs.(Eν_samples)) * λs^2 / c * 1e9, digits=2), " nm")
         println("OAM @ λmin = ", round(c/νmax*1e9, digits=2), " nm : ", l_samples[end])
         println("OAM @ λ0 = ", c/νs*1e9, " nm : ", l(νs))
         println("OAM @ λmax = ", round(c/νmin*1e9, digits=2), " nm : ", l_samples[1])
-        println("Mean OAM = ", round(sum(abs.(Eν_samples) .* l_samples .* dν), digits=3))
+        println("Mean OAM = ", round(NumericalIntegration.integrate(ν_samples, abs.(Eν_samples) .* l_samples), digits=3))
 
 
-        p = scatter(ν_samples.*1e-15, abs.(Eν_samples), 
+        p = Plots.plot(ν_samples.*1e-15, abs.(Eν_samples), 
                     title="Sampled frequencies and OAM", color="blue", 
                     ylabel="Spectral Amp. (a.u.)", xlabel="Freq. (PHz)")
         ax2 = twinx()
-        scatter!(ax2, ν_samples.*1e-15, l_samples, color="red")
+        Plots.scatter!(ax2, ν_samples.*1e-15, l_samples, color="red")
         display(p)
     end
+
 
     Ex = zeros(ComplexF64, N, N, zsteps)
     Ey = zeros(ComplexF64, N, N, zsteps)
@@ -402,7 +412,7 @@ function SpatioTemporalLightSpringVectorDiffraction(fn_params::FN_Params, diff_p
     fft_plan_hor = plan_fft(zeropad_horizontal(Ex[:, :, 33], pad_size), 2; flags=FFTW.MEASURE)
 
     # Run once to compile and save x and y vectors
-    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l, Z, 
+    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l0, Z, 
                 aberration=aberration, hole=hole, fft_plan=true,
                 fft_plan_vert=fft_plan_vert, fft_plan_hor=fft_plan_hor)
 
@@ -415,7 +425,7 @@ function SpatioTemporalLightSpringVectorDiffraction(fn_params::FN_Params, diff_p
         k = 2π/fn_params.λs
         diff_params.kt = k * nt
         zR = π * w^2 * nt / fn_params.λs
-        Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[I[2]], l, Z, 
+        Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[I[2]], l[I[1]], Z, 
                     aberration=aberration, hole=hole, fft_plan=true,
                     fft_plan_vert=fft_plan_vert, fft_plan_hor=fft_plan_hor)
 
@@ -437,7 +447,6 @@ function SpatioTemporalLightSpringVectorDiffraction(fn_params::FN_Params, diff_p
     return E, x, y, z
 
 end
-
 
 println("Diffraction.jl compiled")
 

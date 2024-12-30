@@ -375,12 +375,10 @@ function Zernike(fn_params::FN_Params, E::Matrix, Z::Vector, l::Real)
 end
 
 function getPolarizationEllipse2D(x, y, Ex, Ey; num_ellipses=(21, 21), draw_arrow=true,
-                       amplification=0.75, color_line="white", line_width=0.5)
+                       amplification=0.75, color_line="white", line_width=0.5, save=true)
     # Approach taken from https://github.com/aocg-ucm/diffractio/blob/main/diffractio/vector_fields_XY.py
 
     intensity_max = maximum(abs.(Ex).^2 .+ abs.(Ey).^2)
-    x .*= 1e6
-    y .*= 1e6
     Dx = x[end] - x[1]
     Dy = y[end] - y[1]
 
@@ -420,15 +418,14 @@ function getPolarizationEllipse2D(x, y, Ex, Ey; num_ellipses=(21, 21), draw_arro
 
                 if draw_arrow
                     arrows!(ax1, [Ex_real[1]], [Ey_real[1]], [Ex_real[1] - Ex_real[2]], 
-                    [Ey_real[1] - Ey_real[2]], arrowsize = 8, color=color_line, linewidth=0)
-                    #arrowcolor = strength, linecolor = strength)
-                
-                    #quiver!([Ex_real[1]], [Ey_real[1]], 
-                    #        quiver=([Ex_real[1] - Ex_real[2]], [Ey_real[1] - Ey_real[2]]), 
-                    #        arrow=:closed, color=color_line, lw=0)
+                    [Ey_real[1] - Ey_real[2]], arrowsize = 11, color=color_line, linewidth=0)
                 end
             end
         end
+    end
+
+    if save
+        Makie.save("PolState_XY.png", fig)
     end
 
     fig
@@ -835,15 +832,23 @@ function DiffractionMovie(Comp::String, Ex::Array, Ey::Array, Ez::Array,
                             x::Vector, y::Vector, z::Vector; intensity=true, save=false)
 
     
-    Ex = Matrix(transpose(Ex))
-    Ey = Matrix(transpose(Ey))
-    Ez = Matrix(transpose(Ez))
+    #Ex = Matrix(transpose(Ex))
+    #Ey = Matrix(transpose(Ey))
+    #Ez = Matrix(transpose(Ez))
+    max_tot = maximum(abs2.(Ex) .+ abs2.(Ey) .+ abs2.(Ez))
+    max_Ex = maximum(abs.(Ex))
+    max_Ey = maximum(abs.(Ey))
+    max_Ez = maximum(abs.(Ez))
+    max_Ix = maximum(abs2.(Ex))
+    max_Iy = maximum(abs2.(Ey))
+    max_Iz = maximum(abs2.(Ez))
 
     if Comp == "t"
         I_tot = abs2.(Ex) .+ abs2.(Ey) .+ abs2.(Ez)
+        I_tot ./= max_tot
 
         foreach(eachindex(z)) do i
-            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, I_tot[:, :, i])
+            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, I_tot[:, :, i], colorrange=(0, 1))
             ax.xlabel = L"\textbf{x (μm)}"
             ax.ylabel = L"\textbf{y (μm)}"
             ax.title = "Total intensity @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
@@ -857,9 +862,10 @@ function DiffractionMovie(Comp::String, Ex::Array, Ey::Array, Ez::Array,
     elseif Comp == "x"
         if intensity
             Ix = abs2.(Ex)
+            Ix ./= max_Ix
 
             foreach(eachindex(z)) do i
-                fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, Ix[:, :, i])
+                fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, Ix[:, :, i], colorrange=(0, 1))
                 ax.xlabel = L"\textbf{x (μm)}"
                 ax.ylabel = L"\textbf{y (μm)}"
                 ax.title = "Intensity (x-comp.) @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
@@ -872,7 +878,7 @@ function DiffractionMovie(Comp::String, Ex::Array, Ey::Array, Ez::Array,
         else
 
             foreach(eachindex(z)) do i
-                fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, real.(Ex)[:, :, i])
+                fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, real.(Ex)[:, :, i] ./ max_Ex, colorrange=(-1, 1))
                 ax.xlabel = L"\textbf{x (μm)}"
                 ax.ylabel = L"\textbf{y (μm)}"
                 ax.title = "Electric field (x-comp.) @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
@@ -887,9 +893,10 @@ function DiffractionMovie(Comp::String, Ex::Array, Ey::Array, Ez::Array,
     elseif Comp == "y"
         if intensity
             Iy = abs2.(Ey)
+            Iy ./= max_Iy
 
             foreach(eachindex(z)) do i
-                fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, Iy[:, :, i])
+                fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, Iy[:, :, i], colorrange=(0, 1))
                 ax.xlabel = L"\textbf{x (μm)}"
                 ax.ylabel = L"\textbf{y (μm)}"
                 ax.title = "Intensity (y-comp.) @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
@@ -902,7 +909,7 @@ function DiffractionMovie(Comp::String, Ex::Array, Ey::Array, Ez::Array,
         else
 
             foreach(eachindex(z)) do i
-                fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, real.(Ey)[:, :, i])
+                fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, real.(Ey)[:, :, i] ./ max_Ey, colorrange=(-1, 1))
                 ax.xlabel = L"\textbf{x (μm)}"
                 ax.ylabel = L"\textbf{y (μm)}"
                 ax.title = "Electric field (y-comp.) @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
@@ -917,9 +924,10 @@ function DiffractionMovie(Comp::String, Ex::Array, Ey::Array, Ez::Array,
     elseif Comp == "z"
         if intensity
             Iz = abs2.(Ez)
+            Iz ./= max_Iz
 
             foreach(eachindex(z)) do i
-                fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, Iz[:, :, i])
+                fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, Iz[:, :, i], colorrange=(0, 1))
                 ax.xlabel = L"\textbf{x (μm)}"
                 ax.ylabel = L"\textbf{y (μm)}"
                 ax.title = "Intensity (z-comp.) @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
@@ -932,7 +940,7 @@ function DiffractionMovie(Comp::String, Ex::Array, Ey::Array, Ez::Array,
         else
 
             foreach(eachindex(z)) do i
-                fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, real.(Ez)[:, :, i])
+                fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, real.(Ez)[:, :, i] ./ max_Ez, colorrange=(-1, 1))
                 ax.xlabel = L"\textbf{x (μm)}"
                 ax.ylabel = L"\textbf{y (μm)}"
                 ax.title = "Electric field (z-comp.) @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
@@ -957,7 +965,8 @@ function XZSlices(Comp::String, Ex::Array, Ey::Array, Ez::Array,
             NA = 1 / (2 * diff_params.fnum)
             println(io, "Numerical aperture of system = ", round(NA, digits=2))
     
-            I_focus = abs2.(Ex[:, :, 33]) .+ abs2.(Ey[:, :, 33]) .+ abs2.(Ez[:, :, 33])
+            maxz_index = findmax(abs2.(Ex) .+ abs2.(Ey) .+ abs2.(Ez))[2][3]
+            I_focus = abs2.(Ex[:, :, maxz_index]) .+ abs2.(Ey[:, :, maxz_index]) .+ abs2.(Ez[:, :, maxz_index])
             E_focus = calcEnergy(x, y, I_focus)
             println(io, "Energy @ focus = ", round(E_focus * 1e3, digits=3), " mJ")
     
@@ -975,14 +984,20 @@ function XZSlices(Comp::String, Ex::Array, Ey::Array, Ez::Array,
             end
             println(io, "Peak intensity @ focus = ", round(I_target * 1e-4, digits=3), " W/cm^2")
     
-            println(io, "Ratio of peak Ix to I_tot = ", maximum(abs2.(Ex[:, :, 33])) ./ maximum(I_focus))
-            println(io, "Ratio of peak Iy to I_tot = ", maximum(abs2.(Ey[:, :, 33])) ./ maximum(I_focus))
-            println(io, "Ratio of peak Iz to I_tot = ", maximum(abs2.(Ez[:, :, 33])) ./ maximum(I_focus))
+            println(io, "Ratio of peak Ix to I_tot = ", maximum(abs2.(Ex[:, :, maxz_index])) ./ maximum(I_focus))
+            println(io, "Ratio of peak Iy to I_tot = ", maximum(abs2.(Ey[:, :, maxz_index])) ./ maximum(I_focus))
+            println(io, "Ratio of peak Iz to I_tot = ", maximum(abs2.(Ez[:, :, maxz_index])) ./ maximum(I_focus))
         end
     end
 
+    max_tot = maximum(abs2.(Ex) .+ abs2.(Ey) .+ abs2.(Ez))
+    max_Ex = maximum(abs.(Ex))
+    max_Ey = maximum(abs.(Ey))
+    max_Ez = maximum(abs.(Ez))
+
     if Comp == "t"
         I_tot = abs2.(Ex) .+ abs2.(Ey) .+ abs2.(Ez)
+        I_tot ./= max_tot
         
         fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(I_tot[:, 129, :]))
         ax.xlabel = L"\textbf{z (μm)}"
@@ -997,6 +1012,7 @@ function XZSlices(Comp::String, Ex::Array, Ey::Array, Ez::Array,
     elseif Comp == "x"
         if intensity
             Ix = abs2.(Ex)
+            Ix ./= max_tot
 
             fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(Ix[:, 129, :]))
             ax.xlabel = L"\textbf{z (μm)}"
@@ -1009,7 +1025,7 @@ function XZSlices(Comp::String, Ex::Array, Ey::Array, Ez::Array,
             end
         else
 
-            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(real.(Ex)[:, 129, :]), colormap=:RdBu)
+            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(real.(Ex)[:, 129, :]) ./ max_Ex, colormap=:RdBu)
             ax.xlabel = L"\textbf{z (μm)}"
             ax.ylabel = L"\textbf{x (μm)}"
             ax.title = "Electric field (x-comp.)"
@@ -1023,6 +1039,7 @@ function XZSlices(Comp::String, Ex::Array, Ey::Array, Ez::Array,
     elseif Comp == "y"
         if intensity
             Iy = abs2.(Ey)
+            Iy ./= max_tot
 
             fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(Iy[:, 129, :]))
             ax.xlabel = L"\textbf{z (μm)}"
@@ -1035,7 +1052,7 @@ function XZSlices(Comp::String, Ex::Array, Ey::Array, Ez::Array,
             end
         else
 
-            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(real.(Ey)[:, 129, :]), colormap=:RdBu)
+            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(real.(Ey)[:, 129, :]) ./ max_Ey, colormap=:RdBu)
             ax.xlabel = L"\textbf{z (μm)}"
             ax.ylabel = L"\textbf{x (μm)}"
             ax.title = "Electric field (y-comp.)"
@@ -1049,6 +1066,7 @@ function XZSlices(Comp::String, Ex::Array, Ey::Array, Ez::Array,
     elseif Comp == "z"
         if intensity
             Iz = abs2.(Ez)
+            Iz ./= max_tot
 
             fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(Iz[:, 129, :]))
             ax.xlabel = L"\textbf{z (μm)}"
@@ -1061,7 +1079,7 @@ function XZSlices(Comp::String, Ex::Array, Ey::Array, Ez::Array,
             end
         else
 
-            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(real.(Ez)[:, 129, :]), colormap=:RdBu)
+            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(real.(Ez)[:, 129, :]) ./ max_Ez, colormap=:RdBu)
             ax.xlabel = L"\textbf{z (μm)}"
             ax.ylabel = L"\textbf{x (μm)}"
             ax.title = "Electric field (z-comp.)"
@@ -1109,8 +1127,14 @@ function YZSlices(Comp::String, Ex::Array, Ey::Array, Ez::Array,
         end
     end
 
+    max_tot = maximum(abs2.(Ex) .+ abs2.(Ey) .+ abs2.(Ez))
+    max_Ex = maximum(abs.(Ex))
+    max_Ey = maximum(abs.(Ey))
+    max_Ez = maximum(abs.(Ez))
+
     if Comp == "t"
         I_tot = abs2.(Ex) .+ abs2.(Ey) .+ abs2.(Ez)
+        I_tot ./= max_tot
         
         fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(I_tot[129, :, :]))
         ax.xlabel = L"\textbf{z (μm)}"
@@ -1125,6 +1149,7 @@ function YZSlices(Comp::String, Ex::Array, Ey::Array, Ez::Array,
     elseif Comp == "x"
         if intensity
             Ix = abs2.(Ex)
+            Ix ./= max_tot
 
             fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(Ix[129, :, :]))
             ax.xlabel = L"\textbf{z (μm)}"
@@ -1151,6 +1176,7 @@ function YZSlices(Comp::String, Ex::Array, Ey::Array, Ez::Array,
     elseif Comp == "y"
         if intensity
             Iy = abs2.(Ey)
+            Iy ./= max_tot
 
             fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(Iy[129, :, :]))
             ax.xlabel = L"\textbf{z (μm)}"
@@ -1177,6 +1203,7 @@ function YZSlices(Comp::String, Ex::Array, Ey::Array, Ez::Array,
     elseif Comp == "z"
         if intensity
             Iz = abs2.(Ez)
+            Iz ./= max_tot
 
             fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, transpose(Iz[129, :, :]))
             ax.xlabel = L"\textbf{z (μm)}"
