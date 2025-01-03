@@ -248,7 +248,7 @@ function SpatioTemporalVectorDiffraction(fn_params::FN_Params, diff_params::Diff
     # Define spectral profile
     if spectdata
 
-        wl, I, ϕ = readSpect(fn_params, "sample-spect.txt")
+        wl, I, ϕ = readSpect(fn_params, "input_data/sample-spect.txt")
         λ_samples = collect(range(500e-9, wl[end], 65))
         ν_samples = c ./ reverse(λ_samples)
         dν = ν_samples[2] - ν_samples[1]
@@ -339,7 +339,7 @@ function SpatioTemporalVectorDiffraction(fn_params::FN_Params, diff_params::Diff
     νs = ωs/2π
     if spectdata
 
-        wl, I, ϕ = readSpect(fn_params, "sample-spect.txt")
+        wl, I, ϕ = readSpect(fn_params, "input_data/sample-spect.txt")
         λ_samples = collect(range(500e-9, wl[end], 65))
         ν_samples = c ./ reverse(λ_samples)
         dν = ν_samples[2] - ν_samples[1]

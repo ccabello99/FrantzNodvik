@@ -278,7 +278,7 @@ function FresnelCoefficients(θi::Real, λ0::Real)
     cosθi = cosd(θi)
 
     # For silver mirror @ 785 nm
-    𝑁 = readRefInd("Ag-RefInd.csv")(λ0)
+    𝑁 = readRefInd("input_data/Ag-RefInd.csv")(λ0)
     rp = (sqrt(𝑁^2 - sinθi^2) - 𝑁^2*cosθi) / (sqrt(𝑁^2 - sinθi^2) + 𝑁^2*cosθi)
     rs = (cosθi - sqrt(𝑁^2 - sinθi^2)) / (cosθi + sqrt(𝑁^2 - sinθi^2))
 
