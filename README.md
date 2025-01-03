@@ -43,7 +43,7 @@ E, x, y, z = SpatioTemporalVectorDiffraction(fn_params, diff_params, <Polarizati
 ```
 - if you would like to get the 3D field distribution for a specific input pulse at a specific time, e.g. t=0. If spectdata=true, it will look for spectral data in the input_data folder. If not, it will create a Gaussian spectral profile with center wavelength defined in fn_params, and a total spectral phase which is defined by the user using
 ```julia
-$\phi$ = SpectralPhase(<$$\phi_0$$>, <$$\phi_1$$>, <$$\phi_2$$>, <$$\phi_3$$>, <$$\phi_4$$>, <freq_sample_vector>, <center_freq>)
+phi = SpectralPhase(<phi_0>, <phi_1>, <phi_2>, <phi_3>, <phi_4>, <freq_sample_vector>, <center_freq>)
 ```
 - where spectral phases are given in units of fs, fs^2, fs^3, and fs^4.
 
