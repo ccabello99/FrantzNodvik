@@ -20,10 +20,12 @@ function ParamScan(fn_param::FN_Params, w_init::Real, w_exp::Real, wp_init::Real
     
 
     # Sapphire properties
+    cd("input_data")
     sapphire = SapphireSellmeier()
     n0 = SaphRefractiveIndex(sapphire)
-    n2 = SaphKerrRefractiveIndex("input_data/n2_sapphire.csv")
-    σa, σe = getCrossSections("input_data/absorption_crosssection.csv", "input_data/emission_crosssection.csv")
+    n2 = SaphKerrRefractiveIndex("n2_sapphire.csv")
+    σa, σe = getCrossSections("absorption_crosssection.csv", "emission_crosssection.csv")
+    cd("..")
 
 
     # Wavelength-dependent saturation fluence

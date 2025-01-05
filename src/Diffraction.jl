@@ -159,9 +159,9 @@ function RichardsWolf(fn_params::FN_Params, diff_params::Diffract,
 
     end
 
-    Efx .= Matrix(transpose(Efx))
-    Efy .= Matrix(transpose(Efy))
-    Efz .= Matrix(transpose(Efz))
+    #Efx .= Matrix(transpose(Efx))
+    #Efy .= Matrix(transpose(Efy))
+    #Efz .= Matrix(transpose(Efz))
 
     Ef = [Efx, Efy, Efz]
 
@@ -182,6 +182,8 @@ function RichardsWolf(fn_params::FN_Params, diff_params::Diffract,
         I_focus = abs2.(Efx) .+ abs2.(Efy) .+ abs2.(Efz)
         E_focus = calcEnergy(xf, yf, I_focus)
         println("Energy @ focus = ", round(E_focus * 1e3, digits=3), " mJ")
+        w0_x, w0_y = e22D(xf, yf, I_focus)
+        println("Beam spot size (e2) @ focus =", round(w0_x*1e6, digits=2), " μm x ", round(w0_y*1e6, digits=2), " μm")
         w0_x, w0_y = FWHM2D(xf, yf, I_focus)
         println("Beam spot size (FWHM) @ focus =", round(w0_x*1e6, digits=2), " μm x ", round(w0_y*1e6, digits=2), " μm")
         Aeff = calcAeff(xf, yf, I_focus)
@@ -189,9 +191,30 @@ function RichardsWolf(fn_params::FN_Params, diff_params::Diffract,
         Ppeak = 0.94 * E_focus / 3.8e-15
         I_target = 2 * Ppeak / Aeff
         println("Peak intensity @ focus = ", round(I_target * 1e-4, digits=3), " W/cm^2")
-        println("Ratio of peak Ix to I_tot = ", maximum(abs2.(Efx))./maximum(I_focus))
-        println("Ratio of peak Iy to I_tot = ", maximum(abs2.(Efy))./maximum(I_focus))
-        println("Ratio of peak Iz to I_tot = ", maximum(abs2.(Efz))./maximum(I_focus))
+        max_idx = argmax(I_focus)
+        Ix_at_max = abs2.(Efx[max_idx])
+        Iy_at_max = abs2.(Efy[max_idx])
+        Iz_at_max = abs2.(Efz[max_idx])
+        I_tot_at_max = Ix_at_max + Iy_at_max + Iz_at_max
+        println("Ratio of Ix to I_tot at I_tot max = ", Ix_at_max / I_tot_at_max)
+        println("Ratio of Iy to I_tot at I_tot max = ", Iy_at_max / I_tot_at_max)
+        println("Ratio of Iz to I_tot at I_tot max = ", Iz_at_max / I_tot_at_max)
+        max_idx = argmax(abs2.(Efy))
+        Ix_at_max = abs2.(Efx[max_idx])
+        Iy_at_max = abs2.(Efy[max_idx])
+        Iz_at_max = abs2.(Efz[max_idx])
+        I_tot_at_max = Ix_at_max + Iy_at_max + Iz_at_max
+        println("Ratio of Ix to I_tot at Iy max = ", Ix_at_max / I_tot_at_max)
+        println("Ratio of Iy to I_tot at Iy max = ", Iy_at_max / I_tot_at_max)
+        println("Ratio of Iz to I_tot at Iy max = ", Iz_at_max / I_tot_at_max)
+        max_idx = argmax(abs2.(Efz))
+        Ix_at_max = abs2.(Efx[max_idx])
+        Iy_at_max = abs2.(Efy[max_idx])
+        Iz_at_max = abs2.(Efz[max_idx])
+        I_tot_at_max = Ix_at_max + Iy_at_max + Iz_at_max
+        println("Ratio of Ix to I_tot at Iz max = ", Ix_at_max / I_tot_at_max)
+        println("Ratio of Iy to I_tot at Iz max = ", Iy_at_max / I_tot_at_max)
+        println("Ratio of Iz to I_tot at Iz max = ", Iz_at_max / I_tot_at_max)
     end
 
     return Ef, xf, yf
@@ -247,17 +270,17 @@ function SpatioTemporalVectorDiffraction(fn_params::FN_Params, diff_params::Diff
 
     # Define spectral profile
     if spectdata
-
-        wl, I, ϕ = readSpect(fn_params, "input_data/sample-spect.txt")
-        λ_samples = collect(range(500e-9, wl[end], 65))
+        cd("input_data")
+        λ, Iλ, ϕ = readSpect(fn_params, "sample-spect.txt")
+        λ_samples = collect(range(500e-9, λ[end], 65))
         ν_samples = c ./ reverse(λ_samples)
         dν = ν_samples[2] - ν_samples[1]
-        Iν = reverse(I.(λ_samples))
+        Iν = reverse(Iλ.(λ_samples))
         ϕν = reverse(ϕ.(λ_samples))
         
         norm = NumericalIntegration.integrate(ν_samples, sqrt.(Iν))
         Eν_samples = sqrt.(Iν) .* exp.(1im .* ϕν) ./ norm
-
+        cd("..")
     else
             
         Δν = 2 * log(2) / (π * τs)
@@ -338,18 +361,19 @@ function SpatioTemporalVectorDiffraction(fn_params::FN_Params, diff_params::Diff
     # Define spectral profile
     νs = ωs/2π
     if spectdata
-
-        wl, I, ϕ = readSpect(fn_params, "input_data/sample-spect.txt")
-        λ_samples = collect(range(500e-9, wl[end], 65))
+        cd("input_data")
+        λ, Iλ, ϕ = readSpect(fn_params, "sample-spect.txt")
+        λ_samples = collect(range(500e-9, λ[end], 65))
         ν_samples = c ./ reverse(λ_samples)
         dν = ν_samples[2] - ν_samples[1]
-        Iν = reverse(I.(λ_samples))
+        Iν = reverse(Iλ.(λ_samples))
         ϕν = reverse(ϕ.(λ_samples))
         
         norm = NumericalIntegration.integrate(ν_samples, sqrt.(Iν))
         Eν_samples = sqrt.(Iν) .* exp.(1im .* ϕν) ./ norm
         νmin = ν_samples[find_first(abs.(Eν_samples) ./ maximum(abs.(Eν_samples)), 1e-1, "e2")]
         νmax = ν_samples[find_last(abs.(Eν_samples) ./ maximum(abs.(Eν_samples)), 1e-1, "e2")]
+        cd("..")
 
     else
             

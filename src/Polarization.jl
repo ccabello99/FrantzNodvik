@@ -27,7 +27,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     end
 
     if hole
-        Ex = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ex)
+        HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ex)
     end
 
     scaleField!(x, y, Ex, Ey, Ein)
