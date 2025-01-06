@@ -8,7 +8,6 @@ mutable struct Diffract{T}
     sinθmax::T
     nt::T
     kt::T
-    Ein::T
     aperture::Matrix{T}
     m::Int
     θ::Matrix{T}
@@ -24,8 +23,6 @@ mutable struct Diffract{T}
 
         k = 2π/λs
         kt = k * nt 
-        
-        Ein = 2.5e-3
 
         aperture = circular_aperture(fn_params, R)
         if N % 2 != 0
@@ -42,7 +39,7 @@ mutable struct Diffract{T}
         θ = r ./ f
         ϕ = atan.(Y, X)
 
-        new{T}(f, fnum, w, R, sinθmax, nt, kt, Ein, aperture, m, θ, ϕ)
+        new{T}(f, fnum, w, R, sinθmax, nt, kt, aperture, m, θ, ϕ)
     end
 
 end
@@ -60,14 +57,14 @@ function TransmissionFunction(fn_params::FN_Params, diff_params::Diffract,
 
     # Initialize fields and apply polarization matrix
     if l != 0
-        Epx, Epy, Epz = Polarization(fn_params, diff_params, l, Pol, Z, aberration=aberration, hole=hole)
+        Epx, Epy, Epz = Polarization(fn_params, diff_params, l, Pol, Z, aberration=aberration, hole=hole, verbose=verbose)
     else
-        Epx, Epy, Epz = Polarization(fn_params, diff_params, Pol, Z, aberration=aberration, hole=hole)
+        Epx, Epy, Epz = Polarization(fn_params, diff_params, Pol, Z, aberration=aberration, hole=hole, verbose=verbose)
     end
 
     # Apodization
-    Apod = sqrt.((cos.(θ)))
-    #Apod = 2 ./ (1 .+ cos.(θ))
+    #Apod = sqrt.((cos.(θ)))
+    Apod = 2 ./ (1 .+ cos.(θ))
 
     # Transmitted fields
     Etx .= Apod .* aperture .* Epx
@@ -81,8 +78,7 @@ function TransmissionFunction(fn_params::FN_Params, diff_params::Diffract,
         E_trans = calcEnergy(x, y, It_trans)
         println("Energy after parabola = ", round(E_trans * 1e3, digits=3), " mJ")
         w0_x, w0_y = e22D(x, y, It_trans)
-        println("Beam spot size (1/e2) on parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
-        display(heatmap(x, y, It_trans))
+        println("Beam waist (1/e2) on parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
     end
 
     return Etx, Ety, Etz
@@ -98,7 +94,7 @@ function RichardsWolf(fn_params::FN_Params, diff_params::Diffract,
 
     factor = -(1im * R^2 / (f * λs * m^2))
 
-    Etx, Ety, Etz = TransmissionFunction(fn_params, diff_params, Pol, l, Z, aberration=aberration, hole=hole)
+    Etx, Ety, Etz = TransmissionFunction(fn_params, diff_params, Pol, l, Z, aberration=aberration, hole=hole, verbose=verbose)
 
     # Fields
     Efx = zeros(ComplexF64, N, N)
@@ -183,13 +179,13 @@ function RichardsWolf(fn_params::FN_Params, diff_params::Diffract,
         E_focus = calcEnergy(xf, yf, I_focus)
         println("Energy @ focus = ", round(E_focus * 1e3, digits=3), " mJ")
         w0_x, w0_y = e22D(xf, yf, I_focus)
-        println("Beam spot size (e2) @ focus =", round(w0_x*1e6, digits=2), " μm x ", round(w0_y*1e6, digits=2), " μm")
+        println("Beam waist (e2) @ focus =", round(w0_x*1e6, digits=2), " μm x ", round(w0_y*1e6, digits=2), " μm")
         w0_x, w0_y = FWHM2D(xf, yf, I_focus)
-        println("Beam spot size (FWHM) @ focus =", round(w0_x*1e6, digits=2), " μm x ", round(w0_y*1e6, digits=2), " μm")
+        println("Beam waist (FWHM) @ focus =", round(w0_x*1e6, digits=2), " μm x ", round(w0_y*1e6, digits=2), " μm")
         Aeff = calcAeff(xf, yf, I_focus)
         println("Effective area = ", round(Aeff*1e12, digits=2), " μm^2")
         Ppeak = 0.94 * E_focus / 3.8e-15
-        I_target = 2 * Ppeak / Aeff
+        I_target = Ppeak / Aeff
         println("Peak intensity @ focus = ", round(I_target * 1e-4, digits=3), " W/cm^2")
         max_idx = argmax(I_focus)
         Ix_at_max = abs2.(Efx[max_idx])

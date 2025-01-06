@@ -8,8 +8,8 @@ struct Azimuthal end
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, 
                         ::P, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs = fn_params
-    @unpack w, θ, ϕ, Ein = diff_params
+    @unpack N, x, y, λs, Ein = fn_params
+    @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
     sinθ = sin.(θ)
@@ -35,20 +35,24 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
     # Print some useful info about initial field
     if verbose
+        Pol = "p-polarized"
         @show Pol
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
         w0_x, w0_y = e22D(x, y, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
-        println("Reflection coefficiencts are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
+        println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    M00 = rp .* cosϕ.^2 .* cosθ .+ rs .* sinϕ.^2
-    M01 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
+    rp_cosθ = rp .* cosθ
+    sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M10 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
-    M11 = rs .* cosϕ.^2 .+ rp .* sinϕ.^2 .* cosθ
+    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+
+    M10 = M01
+    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
     M20 = -rp .* sinθ .* cosϕ
     M21 = -rp .* sinθ .* sinϕ
@@ -63,8 +67,8 @@ end
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, 
                         ::S, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs = fn_params
-    @unpack w, θ, ϕ, Ein = diff_params
+    @unpack N, x, y, λs, Ein = fn_params
+    @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
     sinθ = sin.(θ)
@@ -91,20 +95,24 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
     # Print some useful info about initial field
     if verbose
+        Pol = "s-polarized"
         @show Pol
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
         w0_x, w0_y = e22D(x, y, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
-        println("Reflection coefficiencts are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
+        println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    M00 = rp .* cosϕ.^2 .* cosθ .+ rs .* sinϕ.^2
-    M01 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
+    rp_cosθ = rp .* cosθ
+    sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M10 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
-    M11 = rs .* cosϕ.^2 .+ rp .* sinϕ.^2 .* cosθ
+    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+
+    M10 = M01
+    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
     M20 = -rp .* sinθ .* cosϕ
     M21 = -rp .* sinθ .* sinϕ
@@ -119,8 +127,8 @@ end
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, 
                         ::D, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs = fn_params
-    @unpack w, θ, ϕ, Ein = diff_params
+    @unpack N, x, y, λs, Ein = fn_params
+    @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
     sinθ = sin.(θ)
@@ -150,20 +158,24 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
     # Print some useful info about initial field
     if verbose
+        Pol = "45°-polarized"
         @show Pol
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
         w0_x, w0_y = e22D(x, y, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
-        println("Reflection coefficiencts are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
+        println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    M00 = rp .* cosϕ.^2 .* cosθ .+ rs .* sinϕ.^2
-    M01 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
+    rp_cosθ = rp .* cosθ
+    sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M10 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
-    M11 = rs .* cosϕ.^2 .+ rp .* sinϕ.^2 .* cosθ
+    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+
+    M10 = M01
+    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
     M20 = -rp .* sinθ .* cosϕ
     M21 = -rp .* sinθ .* sinϕ
@@ -178,8 +190,8 @@ end
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, 
                         ::RHC, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs = fn_params
-    @unpack w, θ, ϕ, Ein = diff_params
+    @unpack N, x, y, λs, Ein = fn_params
+    @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
     sinθ = sin.(θ)
@@ -202,7 +214,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     if hole
         Ex = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ex)
         Ey = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ey)
-        end
+    end
 
 
     scaleField!(x, y, Ex, Ey, Ein)
@@ -210,20 +222,24 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
     # Print some useful info about initial field
     if verbose
+        Pol = "right-hand circularly-polarized"
         @show Pol
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
         w0_x, w0_y = e22D(x, y, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
-        println("Reflection coefficiencts are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
+        println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    M00 = rp .* cosϕ.^2 .* cosθ .+ rs .* sinϕ.^2
-    M01 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
+    rp_cosθ = rp .* cosθ
+    sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M10 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
-    M11 = rs .* cosϕ.^2 .+ rp .* sinϕ.^2 .* cosθ
+    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+
+    M10 = M01
+    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
     M20 = -rp .* sinθ .* cosϕ
     M21 = -rp .* sinθ .* sinϕ
@@ -238,8 +254,8 @@ end
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, 
                         ::LHC, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs = fn_params
-    @unpack w, θ, ϕ, Ein = diff_params
+    @unpack N, x, y, λs, Ein = fn_params
+    @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
     sinθ = sin.(θ)
@@ -270,20 +286,24 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
     # Print some useful info about initial field
     if verbose
+        Pol = "left-hand circularly-polarized"
         @show Pol
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
         w0_x, w0_y = e22D(x, y, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
-        println("Reflection coefficiencts are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
+        println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    M00 = rp .* cosϕ.^2 .* cosθ .+ rs .* sinϕ.^2
-    M01 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
+    rp_cosθ = rp .* cosθ
+    sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M10 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
-    M11 = rs .* cosϕ.^2 .+ rp .* sinϕ.^2 .* cosθ
+    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+
+    M10 = M01
+    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
     M20 = -rp .* sinθ .* cosϕ
     M21 = -rp .* sinθ .* sinϕ
@@ -298,8 +318,8 @@ end
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, 
                         ::Radial, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs = fn_params
-    @unpack w, θ, ϕ, Ein = diff_params
+    @unpack N, x, y, λs, Ein = fn_params
+    @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
     sinθ = sin.(θ)
@@ -330,20 +350,24 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
     # Print some useful info about initial field
     if verbose
+        Pol = "radially-polarized"
         @show Pol
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
         w0_x, w0_y = e22D(x, y, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
-        println("Reflection coefficiencts are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
+        println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    M00 = rp .* cosϕ.^2 .* cosθ .+ rs .* sinϕ.^2
-    M01 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
+    rp_cosθ = rp .* cosθ
+    sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M10 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
-    M11 = rs .* cosϕ.^2 .+ rp .* sinϕ.^2 .* cosθ
+    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+
+    M10 = M01
+    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
     M20 = -rp .* sinθ .* cosϕ
     M21 = -rp .* sinθ .* sinϕ
@@ -358,8 +382,8 @@ end
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, 
                         ::Azimuthal, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs = fn_params
-    @unpack w, θ, ϕ, Ein = diff_params
+    @unpack N, x, y, λs, Ein = fn_params
+    @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
     sinθ = sin.(θ)
@@ -390,20 +414,24 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
     # Print some useful info about initial field
     if verbose
+        Pol = "azimuthally-polarized"
         @show Pol
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
         w0_x, w0_y = e22D(x, y, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
-        println("Reflection coefficiencts are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
+        println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    M00 = rp .* cosϕ.^2 .* cosθ .+ rs .* sinϕ.^2
-    M01 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
+    rp_cosθ = rp .* cosθ
+    sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M10 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
-    M11 = rs .* cosϕ.^2 .+ rp .* sinϕ.^2 .* cosθ
+    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+
+    M10 = M01
+    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
     M20 = -rp .* sinθ .* cosϕ
     M21 = -rp .* sinθ .* sinϕ
@@ -417,8 +445,8 @@ end
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real, 
                         ::P, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs = fn_params
-    @unpack w, θ, ϕ, Ein = diff_params
+    @unpack N, x, y, λs, Ein = fn_params
+    @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
     sinθ = sin.(θ)
@@ -444,20 +472,26 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
     # Print some useful info about initial field
     if verbose
+        OAM = l
+        @show OAM
+        Pol = "p-polarized"
         @show Pol
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
         w0_x, w0_y = e22D(x, y, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
-        println("Reflection coefficiencts are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
+        println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    M00 = rp .* cosϕ.^2 .* cosθ .+ rs .* sinϕ.^2
-    M01 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
+    rp_cosθ = rp .* cosθ
+    sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M10 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
-    M11 = rs .* cosϕ.^2 .+ rp .* sinϕ.^2 .* cosθ
+    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+
+    M10 = M01
+    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
     M20 = -rp .* sinθ .* cosϕ
     M21 = -rp .* sinθ .* sinϕ
@@ -472,8 +506,8 @@ end
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real, 
                         ::S, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs = fn_params
-    @unpack w, θ, ϕ, Ein = diff_params
+    @unpack N, x, y, λs, Ein = fn_params
+    @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
     sinθ = sin.(θ)
@@ -500,20 +534,26 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
     # Print some useful info about initial field
     if verbose
+        OAM = l
+        @show OAM
+        Pol = "s-polarized"
         @show Pol
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
         w0_x, w0_y = e22D(x, y, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
-        println("Reflection coefficiencts are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
+        println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    M00 = rp .* cosϕ.^2 .* cosθ .+ rs .* sinϕ.^2
-    M01 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
+    rp_cosθ = rp .* cosθ
+    sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M10 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
-    M11 = rs .* cosϕ.^2 .+ rp .* sinϕ.^2 .* cosθ
+    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+
+    M10 = M01
+    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
     M20 = -rp .* sinθ .* cosϕ
     M21 = -rp .* sinθ .* sinϕ
@@ -528,8 +568,8 @@ end
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real, 
                         ::D, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs = fn_params
-    @unpack w, θ, ϕ, Ein = diff_params
+    @unpack N, x, y, λs, Ein = fn_params
+    @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
     sinθ = sin.(θ)
@@ -559,20 +599,26 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
     # Print some useful info about initial field
     if verbose
+        OAM = l
+        @show OAM
+        Pol = "45°-polarized"
         @show Pol
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
         w0_x, w0_y = e22D(x, y, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
-        println("Reflection coefficiencts are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
+        println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    M00 = rp .* cosϕ.^2 .* cosθ .+ rs .* sinϕ.^2
-    M01 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
+    rp_cosθ = rp .* cosθ
+    sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M10 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
-    M11 = rs .* cosϕ.^2 .+ rp .* sinϕ.^2 .* cosθ
+    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+
+    M10 = M01
+    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
     M20 = -rp .* sinθ .* cosϕ
     M21 = -rp .* sinθ .* sinϕ
@@ -587,8 +633,8 @@ end
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real, 
                         ::RHC, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs = fn_params
-    @unpack w, θ, ϕ, Ein = diff_params
+    @unpack N, x, y, λs, Ein = fn_params
+    @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
     sinθ = sin.(θ)
@@ -619,20 +665,26 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
     # Print some useful info about initial field
     if verbose
+        OAM = l
+        @show OAM
+        Pol = "right-hand circularly-polarized"
         @show Pol
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
         w0_x, w0_y = e22D(x, y, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
-        println("Reflection coefficiencts are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
+        println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    M00 = rp .* cosϕ.^2 .* cosθ .+ rs .* sinϕ.^2
-    M01 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
+    rp_cosθ = rp .* cosθ
+    sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M10 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
-    M11 = rs .* cosϕ.^2 .+ rp .* sinϕ.^2 .* cosθ
+    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+
+    M10 = M01
+    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
     M20 = -rp .* sinθ .* cosϕ
     M21 = -rp .* sinθ .* sinϕ
@@ -647,8 +699,8 @@ end
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real, 
                         ::LHC, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs = fn_params
-    @unpack w, θ, ϕ, Ein = diff_params
+    @unpack N, x, y, λs, Ein = fn_params
+    @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
     sinθ = sin.(θ)
@@ -679,20 +731,26 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
     # Print some useful info about initial field
     if verbose
+        OAM = l
+        @show OAM
+        Pol = "left-hand circularly-polarized"
         @show Pol
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
         w0_x, w0_y = e22D(x, y, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
-        println("Reflection coefficiencts are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
+        println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    M00 = rp .* cosϕ.^2 .* cosθ .+ rs .* sinϕ.^2
-    M01 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
+    rp_cosθ = rp .* cosθ
+    sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M10 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
-    M11 = rs .* cosϕ.^2 .+ rp .* sinϕ.^2 .* cosθ
+    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+
+    M10 = M01
+    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
     M20 = -rp .* sinθ .* cosϕ
     M21 = -rp .* sinθ .* sinϕ
@@ -707,8 +765,8 @@ end
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
                         ::Radial, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs = fn_params
-    @unpack w, θ, ϕ, Ein = diff_params
+    @unpack N, x, y, λs, Ein = fn_params
+    @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
     sinθ = sin.(θ)
@@ -739,20 +797,26 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
     # Print some useful info about initial field
     if verbose
+        OAM = l
+        @show OAM
+        Pol = "radially-polarized"
         @show Pol
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
         w0_x, w0_y = e22D(x, y, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
-        println("Reflection coefficiencts are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
+        println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    M00 = rp .* cosϕ.^2 .* cosθ .+ rs .* sinϕ.^2
-    M01 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
+    rp_cosθ = rp .* cosθ
+    sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M10 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
-    M11 = rs .* cosϕ.^2 .+ rp .* sinϕ.^2 .* cosθ
+    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+
+    M10 = M01
+    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
     M20 = -rp .* sinθ .* cosϕ
     M21 = -rp .* sinθ .* sinϕ
@@ -767,8 +831,8 @@ end
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
                         ::Azimuthal, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs = fn_params
-    @unpack w, θ, ϕ, Ein = diff_params
+    @unpack N, x, y, λs, Ein = fn_params
+    @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
     sinθ = sin.(θ)
@@ -799,20 +863,26 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
     # Print some useful info about initial field
     if verbose
+        OAM = l
+        @show OAM
+        Pol = "azimuthally-polarized"
         @show Pol
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
         w0_x, w0_y = e22D(x, y, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
-        println("Reflection coefficiencts are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
+        println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    M00 = rp .* cosϕ.^2 .* cosθ .+ rs .* sinϕ.^2
-    M01 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
+    rp_cosθ = rp .* cosθ
+    sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M10 = sinϕ .* cosϕ .* (rp .* cosθ .- rs)
-    M11 = rs .* cosϕ.^2 .+ rp .* sinϕ.^2 .* cosθ
+    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+
+    M10 = M01
+    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
     M20 = -rp .* sinθ .* cosϕ
     M21 = -rp .* sinθ .* sinϕ

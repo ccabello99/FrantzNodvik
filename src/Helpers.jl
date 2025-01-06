@@ -183,16 +183,18 @@ end
 
 function scaleField!(x::Vector, y::Vector, Ex::Matrix, Ey::Matrix, Ein::Real)
 
-    Aeff = calcAeff(x, y, Ex .+ Ey) # Initial effective area
-    Jin = 2 * Ein / Aeff # Initial pulse fluence
-    Ex .*= sqrt(Jin)
-    Ey .*= sqrt(Jin)
+    current = calcEnergy(x, y, abs2.(Ex) .+ abs2.(Ey))
+    
+    scale = sqrt(Ein / current)
+    
+    Ex .*= scale
+    Ey .*= scale
     
 end
 
-function calcEnergy(x::Vector, y::Vector, I_tot::Matrix)
+function calcEnergy(x::Vector, y::Vector, J::Matrix)
 
-    En = round(NumericalIntegration.integrate((x, y), I_tot), digits=5)
+    En = NumericalIntegration.integrate((x, y), J)
 
     return En
 end
@@ -253,9 +255,10 @@ function HoleyMirror!(fn_params::FN_Params, x0::Real, y0::Real, R::Real, E::Matr
 end
 
 function readRefInd(RefInd::String)
+    # Assuming data comes from refractiveindex.info, so always convert λ back to SI units
 
     data = CSV.read(RefInd, DataFrame)
-    wl = data[!, 1]
+    wl = data[!, 1] .* 1e-6
     n = data[!, 2]
     κ = data[!, 3]
 

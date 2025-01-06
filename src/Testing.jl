@@ -13,13 +13,20 @@ include("Helpers.jl")
 
 @unpack c = fn_params
 
-Z = ZernikeCoefficients(0, 0, 0, 0, 0, 0, 0, 0.25, 0, 0, 0)
+Z = ZernikeCoefficients(0, 0, 0, 0, 0, 1.0, 0, 0.0, 0, 0, 0)
 
 diff_params = Diffract{Float64}(fn_params, 54.4e-3, 1.36, 19e-3, 1.0)
+#diff_params = Diffract{Float64}(fn_params, 54.4e-3, 1.36, 12.5e-3, 1.0)
 
-Ef, xf, yf = RichardsWolf(fn_params, diff_params, RHC(), 0e-6, 1, Z, aberration=false, hole=false, verbose=true);
+Ef, xf, yf = RichardsWolf(fn_params, diff_params, P(), 0e-6, 0, Z, aberration=false, hole=false, verbose=true);
 
-#fig, ax, hm = GLMakie.heatmap(xf.*1e6, yf.*1e6, abs2.(Ef[2]), colormap=:viridis)
+#fig, ax, hm = GLMakie.heatmap(xf.*1e6, yf.*1e6, abs2.(Ef[1]), colormap=:viridis)
+#ax.xlabel="x (μm)"
+#ax.ylabel="y (μm)"
+#fig
+
+
+#fig, ax, hm = GLMakie.heatmap(xf.*1e6, yf.*1e6, real.(Ef[1]), colormap=:thermometer)
 #ax.xlabel="x (μm)"
 #ax.ylabel="y (μm)"
 #fig

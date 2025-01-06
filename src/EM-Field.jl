@@ -24,22 +24,21 @@ function LaguerreGauss(params::FN_Params, P::Int, L::Real, A::Real, W::Real)
     y_diff = Y .- y0
     x_diff2 = x_diff.^2
     y_diff2 = y_diff.^2
-
             
-    t .= -(x_diff2 ./ (W2)) .- (y_diff2 ./ (W2))
+    t .= (x_diff2 .+ y_diff2) ./ (W2)
     Phi .= L .* atan.(y_diff, x_diff)
-    Term1 .= (sqrt(2) .* sqrt.(x_diff2 .+ y_diff2)).^L
-    C = A * sqrt(2 * factorial(P) / (π*gamma(P + abs(L) + 1)))
-    Term2 = laguerrel.(P, L, t)
-    Term3 = exp.(t)
+    C = A * sqrt(2 * gamma(P + 1) / (π*gamma(P + abs(L) + 1)))
+
+    Term1 .= (sqrt(2) .* sqrt.(x_diff2 .+ y_diff2) ./ W).^(abs(L))
+    Term2 = laguerrel.(P, abs(L), 2 .* t)
+    Term3 = exp.(-t)
     Term4 = exp.(1im .* Phi)
-    Z .= C .* (1 / W) .* Term1 .* Term2 .* Term3 .* Term4
+
+    Z .= Term1 .* Term2 .* Term3 .* Term4
 
     return Z
 end
 
-
-# wx and wy are the beam diameter along x and y direction
 function Gaussian(params::FN_Params, wx::Real, wy::Real)
 
     @unpack N, x, y, x0, y0 = params
