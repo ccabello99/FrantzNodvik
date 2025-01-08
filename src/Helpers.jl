@@ -130,7 +130,6 @@ function CartesiantoPolar(fn_params::FN_Params, A::Matrix{ComplexF64})
 
 end
 
-
 function circular_aperture(fn_params::FN_Params, R::Real)
     @unpack N, x, y, x0, y0 = fn_params
 
@@ -372,6 +371,110 @@ function Zernike(fn_params::FN_Params, E::Matrix, Z::Vector, l::Real)
     Ab[(X.^2 .+ Y.^2) .< ϵ^2] .= 0
 
     return Ab
+
+end
+
+function getTotalSAMDensity(fn_params::FN_Params, diff_params::Diffract, Ef::Vector, Hf::Vector)
+
+    @unpack ϵ0, λs, c, μ0 = fn_params
+    @unpack ϕ = diff_params
+
+    con = (λs) / (8π * c)
+
+    Ex, Ey, Ez = Ef[1], Ef[2], Ef[3]
+    Hx, Hy, Hz = Hf[1], Hf[2], Hf[3]
+
+    sx = con .* imag((ϵ0.*conj(Ey) .* Ez - ϵ0.*conj(Ez) .* Ey) .+ (μ0.*conj(Hy) .* Hz - μ0.*conj(Hz) .* Hy))
+    sy = con .* imag((ϵ0.*conj(Ez) .* Ex - ϵ0.*conj(Ex) .* Ez) .+ (μ0.*conj(Hz) .* Hx - μ0.*conj(Hx) .* Hz))
+
+    st = sx .+ 1im .* sy
+    sz = con .* imag((ϵ0.*conj(Ex) .* Ey - ϵ0.*conj(Ey) .* Ex) .+ (μ0.*conj(Hx) .* Hy - μ0.*conj(Hy) .* Hx))
+
+    return abs.(st)./maximum(abs.(st)), real.(sz)./maximum(abs.(sz))
+end
+
+function partial_diff(E, dx, dy, dz)
+
+    ∂E_∂x = diff(E, dims=1) / dx
+    ∂E_∂y = diff(E, dims=2) / dy
+    ∂E_∂z = diff(E, dims=3) / dz
+
+    ∂E_∂x = vcat(∂E_∂x, reshape(∂E_∂x[end, :, :], 1, size(∂E_∂x, 2), size(∂E_∂x, 3)))
+    ∂E_∂y = hcat(∂E_∂y, reshape(∂E_∂y[:, end, :], size(∂E_∂y, 1), 1, size(∂E_∂y, 3)))
+    ∂E_∂z = cat(∂E_∂z, reshape(∂E_∂z[:, :, end], size(∂E_∂z, 1), size(∂E_∂z, 2), 1); dims=3)
+
+    return ∂E_∂x, ∂E_∂y, ∂E_∂z
+end
+
+
+function getTotalOAMDensity(fn_params::FN_Params, diff_params::Diffract, Ef::Vector, Hf::Vector, x, y, z)
+
+    @unpack ϵ0, λs, c, μ0 = fn_params
+    @unpack ϕ = diff_params
+
+    Ex, Ey, Ez = Ef[1], Ef[2], Ef[3]
+    Hx, Hy, Hz = Hf[1], Hf[2], Hf[3]
+
+    dx = x[2] - x[1]
+    dy = y[2] - y[1]
+    dz = z[2] - z[1]
+
+    ∂Ex_∂x, ∂Ex_∂y, ∂Ex_∂z = partial_diff(Ex, dx, dy, dz)
+    ∂Ey_∂x, ∂Ey_∂y, ∂Ey_∂z = partial_diff(Ey, dx, dy, dz)
+    ∂Ez_∂x, ∂Ez_∂y, ∂Ez_∂z = partial_diff(Ez, dx, dy, dz)
+
+    ∂Hx_∂x, ∂Hx_∂y, ∂Hx_∂z = partial_diff(Hx, dx, dy, dz)
+    ∂Hy_∂x, ∂Hy_∂y, ∂Hy_∂z = partial_diff(Hy, dx, dy, dz)
+    ∂Hz_∂x, ∂Hz_∂y, ∂Hz_∂z = partial_diff(Hz, dx, dy, dz)
+
+    con = (λs) / (8π * c)
+    px = con * imag((ϵ0 .* conj(Ex) .* ∂Ex_∂x .+ ϵ0 .* conj(Ey) .* ∂Ey_∂x .+ ϵ0 .* conj(Ez) .* ∂Ez_∂x) .+ 
+                    (μ0 .* conj(Hx) .* ∂Hx_∂x .+ μ0 .* conj(Hy) .* ∂Hy_∂x .+ μ0 .* conj(Hz) .* ∂Hz_∂x))
+    py = con * imag((ϵ0 .* conj(Ex) .* ∂Ex_∂y .+ ϵ0 .* conj(Ey) .* ∂Ey_∂y .+ ϵ0 .* conj(Ez) .* ∂Ez_∂y) .+
+                    (μ0 .* conj(Hx) .* ∂Hx_∂y .+ μ0 .* conj(Hy) .* ∂Hy_∂y .+ μ0 .* conj(Hz) .* ∂Hz_∂y))
+    pz = con * imag((ϵ0 .* conj(Ex) .* ∂Ex_∂z .+ ϵ0 .* conj(Ey) .* ∂Ey_∂z .+ ϵ0 .* conj(Ez) .* ∂Ez_∂z) .+
+                    (μ0 .* conj(Hx) .* ∂Hx_∂z .+ μ0 .* conj(Hy) .* ∂Hy_∂z .+ μ0 .* conj(Hz) .* ∂Hz_∂z))                    
+
+    x_grid = reshape(x, size(x, 1), 1, 1)
+    y_grid = reshape(y, 1, size(y, 1), 1)
+    z_grid = reshape(z, 1, 1, size(z, 1))
+
+    Lx = y_grid .* pz .- z_grid .* py
+    Ly = z_grid .* px .- x_grid .* pz
+    Lz = x_grid .* py .- y_grid .* px
+
+    Lt = Lx .+ 1im .* Ly
+
+    return abs.(Lt)./maximum(abs.(Lt)), real.(Lz)./maximum(abs.(Lz))
+end
+
+function VisSpinDensity(s::Matrix, x::Vector, y::Vector; save=false)
+
+    fig, ax, hm = GLMakie.heatmap(x, y, s, colormap=:thermometer)
+    cb = CairoMakie.Colorbar(fig[1, 2], hm, size=30; label = L"\textbf{SAM Density (arb. u.)}")
+    ax.xlabel = "x (μm)"
+    ax.ylabel = "y (μm)"
+
+    if save
+        Makie.save("SpinAM-Density.png", fig)
+    end
+
+    fig
+
+end
+
+function VisOAMDensity(p::Matrix, x::Vector, y::Vector; save=false)
+
+    fig, ax, hm = GLMakie.heatmap(x, y, p, colormap=:inferno)
+    cb = CairoMakie.Colorbar(fig[1, 2], hm, size=30; label = L"\textbf{OAM Density (arb. u.)}")
+    ax.xlabel = "x (μm)"
+    ax.ylabel = "y (μm)"
+
+    if save
+        Makie.save("SpinAM-Density.png", fig)
+    end
+    
+    fig
 
 end
 

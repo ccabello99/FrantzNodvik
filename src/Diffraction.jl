@@ -46,7 +46,7 @@ end
 
 
 function TransmissionFunction(fn_params::FN_Params, diff_params::Diffract, 
-                                Pol, l::Real, Z::Vector; verbose=false, aberration=false, hole=false)
+                                Pol, l::Real, Z::Vector; verbose=false, aberration=false, hole=false, magnetic=false)
     @unpack sinθmax, R, aperture, θ, ϕ = diff_params
     @unpack N, x, y = fn_params
     
@@ -57,9 +57,9 @@ function TransmissionFunction(fn_params::FN_Params, diff_params::Diffract,
 
     # Initialize fields and apply polarization matrix
     if l != 0
-        Epx, Epy, Epz = Polarization(fn_params, diff_params, l, Pol, Z, aberration=aberration, hole=hole, verbose=verbose)
+        Epx, Epy, Epz = Polarization(fn_params, diff_params, l, Pol, Z, aberration=aberration, hole=hole, verbose=verbose, magnetic=magnetic)
     else
-        Epx, Epy, Epz = Polarization(fn_params, diff_params, Pol, Z, aberration=aberration, hole=hole, verbose=verbose)
+        Epx, Epy, Epz = Polarization(fn_params, diff_params, Pol, Z, aberration=aberration, hole=hole, verbose=verbose, magnetic=magnetic)
     end
 
     # Apodization
@@ -88,13 +88,13 @@ end
 function RichardsWolf(fn_params::FN_Params, diff_params::Diffract, 
                         Pol, z::Real, l::Real, Z::Vector; fft_plan=false, 
                         verbose=false, aberration=false, hole=false,
-                        fft_plan_vert=nothing, fft_plan_hor=nothing)
+                        fft_plan_vert=nothing, fft_plan_hor=nothing, magnetic=false)
     @unpack sinθmax, f, R, kt, m, θ = diff_params
     @unpack N, λs, dx, dy = fn_params
 
     factor = -(1im * R^2 / (f * λs * m^2))
 
-    Etx, Ety, Etz = TransmissionFunction(fn_params, diff_params, Pol, l, Z, aberration=aberration, hole=hole, verbose=verbose)
+    Etx, Ety, Etz = TransmissionFunction(fn_params, diff_params, Pol, l, Z, aberration=aberration, hole=hole, verbose=verbose, magnetic=magnetic)
 
     # Fields
     Efx = zeros(ComplexF64, N, N)
@@ -187,30 +187,12 @@ function RichardsWolf(fn_params::FN_Params, diff_params::Diffract,
         Ppeak = 0.94 * E_focus / 3.8e-15
         I_target = Ppeak / Aeff
         println("Peak intensity @ focus = ", round(I_target * 1e-4, digits=3), " W/cm^2")
-        max_idx = argmax(I_focus)
-        Ix_at_max = abs2.(Efx[max_idx])
-        Iy_at_max = abs2.(Efy[max_idx])
-        Iz_at_max = abs2.(Efz[max_idx])
-        I_tot_at_max = Ix_at_max + Iy_at_max + Iz_at_max
-        println("Ratio of Ix to I_tot at I_tot max = ", Ix_at_max / I_tot_at_max)
-        println("Ratio of Iy to I_tot at I_tot max = ", Iy_at_max / I_tot_at_max)
-        println("Ratio of Iz to I_tot at I_tot max = ", Iz_at_max / I_tot_at_max)
-        max_idx = argmax(abs2.(Efy))
-        Ix_at_max = abs2.(Efx[max_idx])
-        Iy_at_max = abs2.(Efy[max_idx])
-        Iz_at_max = abs2.(Efz[max_idx])
-        I_tot_at_max = Ix_at_max + Iy_at_max + Iz_at_max
-        println("Ratio of Ix to I_tot at Iy max = ", Ix_at_max / I_tot_at_max)
-        println("Ratio of Iy to I_tot at Iy max = ", Iy_at_max / I_tot_at_max)
-        println("Ratio of Iz to I_tot at Iy max = ", Iz_at_max / I_tot_at_max)
-        max_idx = argmax(abs2.(Efz))
-        Ix_at_max = abs2.(Efx[max_idx])
-        Iy_at_max = abs2.(Efy[max_idx])
-        Iz_at_max = abs2.(Efz[max_idx])
-        I_tot_at_max = Ix_at_max + Iy_at_max + Iz_at_max
-        println("Ratio of Ix to I_tot at Iz max = ", Ix_at_max / I_tot_at_max)
-        println("Ratio of Iy to I_tot at Iz max = ", Iy_at_max / I_tot_at_max)
-        println("Ratio of Iz to I_tot at Iz max = ", Iz_at_max / I_tot_at_max)
+        E_focus = calcEnergy(xf, yf, abs2.(Efx))
+        println("Energy  in x-component @ focus = ", round(E_focus * 1e3, digits=5), " mJ")
+        E_focus = calcEnergy(xf, yf, abs2.(Efy))
+        println("Energy  in y-component @ focus = ", round(E_focus * 1e3, digits=5), " mJ")
+        E_focus = calcEnergy(xf, yf, abs2.(Efz))
+        println("Energy  in z-component @ focus = ", round(E_focus * 1e3, digits=5), " mJ")
     end
 
     return Ef, xf, yf
@@ -218,8 +200,8 @@ function RichardsWolf(fn_params::FN_Params, diff_params::Diffract,
 end
 
 function FullSpatialProfile(fn_params::FN_Params, diff_params::Diffract, Pol, 
-                                zmin::Real, zmax::Real, zsteps::Int, Z::Vector; l = 0, 
-                                    coeffs = 0, aberration=false, hole=false)
+                                zmin::Real, zmax::Real, zsteps::Int, l::Real, Z::Vector; 
+                                    coeffs = 0, aberration=false, hole=false, magnetic=false)
     @unpack N, λs = fn_params
     @unpack w, nt, kt = diff_params
 
@@ -240,10 +222,11 @@ function FullSpatialProfile(fn_params::FN_Params, diff_params::Diffract, Pol,
     # Run once to compile and save x and y vectors
     Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l, Z, 
                 aberration=aberration, hole=hole, fft_plan=true,
-                fft_plan_vert=fft_plan_vert, fft_plan_hor=fft_plan_hor)
+                fft_plan_vert=fft_plan_vert, fft_plan_hor=fft_plan_hor, magnetic=magnetic)
 
     foreach(eachindex(z)) do I
-        Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[I], l, Z, aberration=aberration, hole=hole, fft_plan=fft_plan)
+        Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[I], l, Z, aberration=aberration, hole=hole, 
+                                fft_plan=true, fft_plan_vert=fft_plan_vert, fft_plan_hor=fft_plan_hor, magnetic=magnetic)
     
         # Include Gouy phase
         ψg = (abs(l) + 1)*atan(z[I] / zR)

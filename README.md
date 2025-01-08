@@ -27,7 +27,7 @@ ParamScan(fn_params, <initial_seed_waist>, <adjusted_seed_waist>, <initial_pump_
  
 # Vector Diffraction
 
-This code is also capable of performing vector diffraction by solving the Richards-Wolf integral via FFTs. It currently supports polarization types: P, S, 45$$\deg$$, left-handed circular, right-handed circular, radial, and azimuthal. 
+This code is also capable of performing vector diffraction by solving the vectorial Debye integral via FFTs. It currently supports polarization types: P, S, 45$$\deg$$, left-handed circular, right-handed circular, radial, and azimuthal. 
 
 ## To run:
 

@@ -7,8 +7,9 @@ struct Radial end
 struct Azimuthal end
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, 
-                        ::P, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs, Ein = fn_params
+                        ::P, Z::Vector; verbose=false, aberration=false, hole=false, magnetic=false)
+
+    @unpack N, x, y, λs, Ein, c = fn_params
     @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
@@ -45,29 +46,57 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = rp .* cosθ
+    rp_cosθ = -rp .* cosθ
+    rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+    
+    if magnetic == false
+        
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
-    M10 = M01
-    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M10 = M01
+        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
-    M20 = -rp .* sinθ .* cosϕ
-    M21 = -rp .* sinθ .* sinϕ
+        M20 = -rp .* sinθ .* cosϕ
+        M21 = -rp .* sinθ .* sinϕ
 
-    Epx = M00 .* Ex .+ M01 .* Ey
-    Epy = M10 .* Ex .+ M11 .* Ey
-    Epz = M20 .* Ex .+ M21 .* Ey
+        Epx = M00 .* Ex .+ M01 .* Ey
+        Epy = M10 .* Ex .+ M11 .* Ey
+        Epz = M20 .* Ex .+ M21 .* Ey
 
-    return Epx, Epy, Epz
+        return Epx, Epy, Epz
+        
+    println(
+       "Calculating the magnetic field") else
+
+        Hx = Ex / 376
+        Hy = Ey / 376
+
+        M00 = sinϕ_cosϕ .* (rs_cosθ .- rp)
+        M01 = -rs_cosθ .* cosϕ.^2 .+ rp .* sinϕ.^2
+
+        M10 = -M01
+        M11 = -M00
+
+        M20 = -rs .* sinθ .* sinϕ
+        M21 = rs .* sinθ .* cosϕ
+
+        Hpx = M00 .* Hx .+ M01 .* Hy
+        Hpy = M10 .* Hx .+ M11 .* Hy
+        Hpz = M20 .* Hx .+ M21 .* Hy
+
+        return Hpx, Hpy, Hpz
+
+    end
 end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, 
-                        ::S, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs, Ein = fn_params
+                        ::S, Z::Vector; verbose=false, aberration=false, hole=false, magnetic=false)
+
+    @unpack N, x, y, λs, Ein, c = fn_params
     @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
@@ -105,29 +134,54 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = rp .* cosθ
+    rp_cosθ = -rp .* cosθ
+    rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+    if magnetic == false
+        
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
-    M10 = M01
-    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M10 = M01
+        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
-    M20 = -rp .* sinθ .* cosϕ
-    M21 = -rp .* sinθ .* sinϕ
+        M20 = -rp .* sinθ .* cosϕ
+        M21 = -rp .* sinθ .* sinϕ
 
-    Epx = M00 .* Ex .+ M01 .* Ey
-    Epy = M10 .* Ex .+ M11 .* Ey
-    Epz = M20 .* Ex .+ M21 .* Ey
+        Epx = M00 .* Ex .+ M01 .* Ey
+        Epy = M10 .* Ex .+ M11 .* Ey
+        Epz = M20 .* Ex .+ M21 .* Ey
 
-    return Epx, Epy, Epz
+        return Epx, Epy, Epz
+    else
+
+        Hx = Ex / 376
+        Hy = Ey / 376
+
+        M00 = sinϕ_cosϕ .* (rs_cosθ .- rp)
+        M01 = -rs_cosθ .* cosϕ.^2 .+ rp .* sinϕ.^2
+
+        M10 = -M01
+        M11 = -M00
+
+        M20 = -rs .* sinθ .* sinϕ
+        M21 = rs .* sinθ .* cosϕ
+
+        Hpx = M00 .* Hx .+ M01 .* Hy
+        Hpy = M10 .* Hx .+ M11 .* Hy
+        Hpz = M20 .* Hx .+ M21 .* Hy
+
+        return Hpx, Hpy, Hpz
+
+    end
 end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, 
-                        ::D, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs, Ein = fn_params
+                        ::D, Z::Vector; verbose=false, aberration=false, hole=false, magnetic=false)
+
+    @unpack N, x, y, λs, Ein, c = fn_params
     @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
@@ -168,29 +222,54 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = rp .* cosθ
+    rp_cosθ = -rp .* cosθ
+    rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+    if magnetic == false
+        
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
-    M10 = M01
-    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M10 = M01
+        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
-    M20 = -rp .* sinθ .* cosϕ
-    M21 = -rp .* sinθ .* sinϕ
+        M20 = -rp .* sinθ .* cosϕ
+        M21 = -rp .* sinθ .* sinϕ
 
-    Epx = M00 .* Ex .+ M01 .* Ey
-    Epy = M10 .* Ex .+ M11 .* Ey
-    Epz = M20 .* Ex .+ M21 .* Ey
+        Epx = M00 .* Ex .+ M01 .* Ey
+        Epy = M10 .* Ex .+ M11 .* Ey
+        Epz = M20 .* Ex .+ M21 .* Ey
 
-    return Epx, Epy, Epz
+        return Epx, Epy, Epz
+    else
+
+        Hx = Ex / 376
+        Hy = Ey / 376
+
+        M00 = sinϕ_cosϕ .* (rs_cosθ .- rp)
+        M01 = -rs_cosθ .* cosϕ.^2 .+ rp .* sinϕ.^2
+
+        M10 = -M01
+        M11 = -M00
+
+        M20 = -rs .* sinθ .* sinϕ
+        M21 = rs .* sinθ .* cosϕ
+
+        Hpx = M00 .* Hx .+ M01 .* Hy
+        Hpy = M10 .* Hx .+ M11 .* Hy
+        Hpz = M20 .* Hx .+ M21 .* Hy
+
+        return Hpx, Hpy, Hpz
+
+    end
 end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, 
-                        ::RHC, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs, Ein = fn_params
+                        ::RHC, Z::Vector; verbose=false, aberration=false, hole=false, magnetic=false)
+
+    @unpack N, x, y, λs, Ein, c = fn_params
     @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
@@ -232,29 +311,54 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = rp .* cosθ
+    rp_cosθ = -rp .* cosθ
+    rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+    if magnetic == false
+        
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
-    M10 = M01
-    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M10 = M01
+        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
-    M20 = -rp .* sinθ .* cosϕ
-    M21 = -rp .* sinθ .* sinϕ
+        M20 = -rp .* sinθ .* cosϕ
+        M21 = -rp .* sinθ .* sinϕ
 
-    Epx = M00 .* Ex .+ M01 .* Ey
-    Epy = M10 .* Ex .+ M11 .* Ey
-    Epz = M20 .* Ex .+ M21 .* Ey
+        Epx = M00 .* Ex .+ M01 .* Ey
+        Epy = M10 .* Ex .+ M11 .* Ey
+        Epz = M20 .* Ex .+ M21 .* Ey
 
-    return Epx, Epy, Epz
+        return Epx, Epy, Epz
+    else
+
+        Hx = Ex / 376
+        Hy = Ey / 376
+
+        M00 = sinϕ_cosϕ .* (rs_cosθ .- rp)
+        M01 = -rs_cosθ .* cosϕ.^2 .+ rp .* sinϕ.^2
+
+        M10 = -M01
+        M11 = -M00
+
+        M20 = -rs .* sinθ .* sinϕ
+        M21 = rs .* sinθ .* cosϕ
+
+        Hpx = M00 .* Hx .+ M01 .* Hy
+        Hpy = M10 .* Hx .+ M11 .* Hy
+        Hpz = M20 .* Hx .+ M21 .* Hy
+
+        return Hpx, Hpy, Hpz
+
+    end
 end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, 
-                        ::LHC, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs, Ein = fn_params
+                        ::LHC, Z::Vector; verbose=false, aberration=false, hole=false, magnetic=false)
+
+    @unpack N, x, y, λs, Ein, c = fn_params
     @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
@@ -296,29 +400,54 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = rp .* cosθ
+    rp_cosθ = -rp .* cosθ
+    rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+    if magnetic == false
+        
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
-    M10 = M01
-    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M10 = M01
+        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
-    M20 = -rp .* sinθ .* cosϕ
-    M21 = -rp .* sinθ .* sinϕ
+        M20 = -rp .* sinθ .* cosϕ
+        M21 = -rp .* sinθ .* sinϕ
 
-    Epx = M00 .* Ex .+ M01 .* Ey
-    Epy = M10 .* Ex .+ M11 .* Ey
-    Epz = M20 .* Ex .+ M21 .* Ey
+        Epx = M00 .* Ex .+ M01 .* Ey
+        Epy = M10 .* Ex .+ M11 .* Ey
+        Epz = M20 .* Ex .+ M21 .* Ey
 
-    return Epx, Epy, Epz
+        return Epx, Epy, Epz
+    else
+
+        Hx = Ex / 376
+        Hy = Ey / 376
+
+        M00 = sinϕ_cosϕ .* (rs_cosθ .- rp)
+        M01 = -rs_cosθ .* cosϕ.^2 .+ rp .* sinϕ.^2
+
+        M10 = -M01
+        M11 = -M00
+
+        M20 = -rs .* sinθ .* sinϕ
+        M21 = rs .* sinθ .* cosϕ
+
+        Hpx = M00 .* Hx .+ M01 .* Hy
+        Hpy = M10 .* Hx .+ M11 .* Hy
+        Hpz = M20 .* Hx .+ M21 .* Hy
+
+        return Hpx, Hpy, Hpz
+
+    end
 end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, 
-                        ::Radial, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs, Ein = fn_params
+                        ::Radial, Z::Vector; verbose=false, aberration=false, hole=false, magnetic=false)
+
+    @unpack N, x, y, λs, Ein, c = fn_params
     @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
@@ -360,29 +489,54 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = rp .* cosθ
+    rp_cosθ = -rp .* cosθ
+    rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+    if magnetic == false
+        
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
-    M10 = M01
-    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M10 = M01
+        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
-    M20 = -rp .* sinθ .* cosϕ
-    M21 = -rp .* sinθ .* sinϕ
+        M20 = -rp .* sinθ .* cosϕ
+        M21 = -rp .* sinθ .* sinϕ
 
-    Epx = M00 .* Ex .+ M01 .* Ey
-    Epy = M10 .* Ex .+ M11 .* Ey
-    Epz = M20 .* Ex .+ M21 .* Ey
+        Epx = M00 .* Ex .+ M01 .* Ey
+        Epy = M10 .* Ex .+ M11 .* Ey
+        Epz = M20 .* Ex .+ M21 .* Ey
 
-    return Epx, Epy, Epz
+        return Epx, Epy, Epz
+    else
+
+        Hx = Ex / 376
+        Hy = Ey / 376
+
+        M00 = sinϕ_cosϕ .* (rs_cosθ .- rp)
+        M01 = -rs_cosθ .* cosϕ.^2 .+ rp .* sinϕ.^2
+
+        M10 = -M01
+        M11 = -M00
+
+        M20 = -rs .* sinθ .* sinϕ
+        M21 = rs .* sinθ .* cosϕ
+
+        Hpx = M00 .* Hx .+ M01 .* Hy
+        Hpy = M10 .* Hx .+ M11 .* Hy
+        Hpz = M20 .* Hx .+ M21 .* Hy
+
+        return Hpx, Hpy, Hpz
+
+    end
 end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, 
-                        ::Azimuthal, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs, Ein = fn_params
+                        ::Azimuthal, Z::Vector; verbose=false, aberration=false, hole=false, magnetic=false)
+
+    @unpack N, x, y, λs, Ein, c = fn_params
     @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
@@ -424,28 +578,53 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = rp .* cosθ
+    rp_cosθ = -rp .* cosθ
+    rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+    if magnetic == false
+        
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
-    M10 = M01
-    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M10 = M01
+        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
-    M20 = -rp .* sinθ .* cosϕ
-    M21 = -rp .* sinθ .* sinϕ
+        M20 = -rp .* sinθ .* cosϕ
+        M21 = -rp .* sinθ .* sinϕ
 
-    Epx = M00 .* Ex .+ M01 .* Ey
-    Epy = M10 .* Ex .+ M11 .* Ey
-    Epz = M20 .* Ex .+ M21 .* Ey
+        Epx = M00 .* Ex .+ M01 .* Ey
+        Epy = M10 .* Ex .+ M11 .* Ey
+        Epz = M20 .* Ex .+ M21 .* Ey
 
-    return Epx, Epy, Epz
+        return Epx, Epy, Epz
+    else
+
+        Hx = Ex / 376
+        Hy = Ey / 376
+
+        M00 = sinϕ_cosϕ .* (rs_cosθ .- rp)
+        M01 = -rs_cosθ .* cosϕ.^2 .+ rp .* sinϕ.^2
+
+        M10 = -M01
+        M11 = -M00
+
+        M20 = -rs .* sinθ .* sinϕ
+        M21 = rs .* sinθ .* cosϕ
+
+        Hpx = M00 .* Hx .+ M01 .* Hy
+        Hpy = M10 .* Hx .+ M11 .* Hy
+        Hpz = M20 .* Hx .+ M21 .* Hy
+
+        return Hpx, Hpy, Hpz
+
+    end
 end
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real, 
-                        ::P, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs, Ein = fn_params
+                        ::P, Z::Vector; verbose=false, aberration=false, hole=false, magnetic=false)
+
+    @unpack N, x, y, λs, Ein, c = fn_params
     @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
@@ -484,29 +663,54 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = rp .* cosθ
+    rp_cosθ = -rp .* cosθ
+    rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+    if magnetic == false
+        
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
-    M10 = M01
-    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M10 = M01
+        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
-    M20 = -rp .* sinθ .* cosϕ
-    M21 = -rp .* sinθ .* sinϕ
+        M20 = -rp .* sinθ .* cosϕ
+        M21 = -rp .* sinθ .* sinϕ
 
-    Epx = M00 .* Ex .+ M01 .* Ey
-    Epy = M10 .* Ex .+ M11 .* Ey
-    Epz = M20 .* Ex .+ M21 .* Ey
+        Epx = M00 .* Ex .+ M01 .* Ey
+        Epy = M10 .* Ex .+ M11 .* Ey
+        Epz = M20 .* Ex .+ M21 .* Ey
 
-    return Epx, Epy, Epz
+        return Epx, Epy, Epz
+    else
+
+        Hx = Ex / 376
+        Hy = Ey / 376
+
+        M00 = sinϕ_cosϕ .* (rs_cosθ .- rp)
+        M01 = -rs_cosθ .* cosϕ.^2 .+ rp .* sinϕ.^2
+
+        M10 = -M01
+        M11 = -M00
+
+        M20 = -rs .* sinθ .* sinϕ
+        M21 = rs .* sinθ .* cosϕ
+
+        Hpx = M00 .* Hx .+ M01 .* Hy
+        Hpy = M10 .* Hx .+ M11 .* Hy
+        Hpz = M20 .* Hx .+ M21 .* Hy
+
+        return Hpx, Hpy, Hpz
+
+    end
 end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real, 
-                        ::S, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs, Ein = fn_params
+                        ::S, Z::Vector; verbose=false, aberration=false, hole=false, magnetic=false)
+
+    @unpack N, x, y, λs, Ein, c = fn_params
     @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
@@ -546,29 +750,54 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = rp .* cosθ
+    rp_cosθ = -rp .* cosθ
+    rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+    if magnetic == false
+        
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
-    M10 = M01
-    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M10 = M01
+        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
-    M20 = -rp .* sinθ .* cosϕ
-    M21 = -rp .* sinθ .* sinϕ
+        M20 = -rp .* sinθ .* cosϕ
+        M21 = -rp .* sinθ .* sinϕ
 
-    Epx = M00 .* Ex .+ M01 .* Ey
-    Epy = M10 .* Ex .+ M11 .* Ey
-    Epz = M20 .* Ex .+ M21 .* Ey
+        Epx = M00 .* Ex .+ M01 .* Ey
+        Epy = M10 .* Ex .+ M11 .* Ey
+        Epz = M20 .* Ex .+ M21 .* Ey
 
-    return Epx, Epy, Epz
+        return Epx, Epy, Epz
+    else
+
+        Hx = Ex / 376
+        Hy = Ey / 376
+
+        M00 = sinϕ_cosϕ .* (rs_cosθ .- rp)
+        M01 = -rs_cosθ .* cosϕ.^2 .+ rp .* sinϕ.^2
+
+        M10 = -M01
+        M11 = -M00
+
+        M20 = -rs .* sinθ .* sinϕ
+        M21 = rs .* sinθ .* cosϕ
+
+        Hpx = M00 .* Hx .+ M01 .* Hy
+        Hpy = M10 .* Hx .+ M11 .* Hy
+        Hpz = M20 .* Hx .+ M21 .* Hy
+
+        return Hpx, Hpy, Hpz
+
+    end
 end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real, 
-                        ::D, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs, Ein = fn_params
+                        ::D, Z::Vector; verbose=false, aberration=false, hole=false, magnetic=false)
+
+    @unpack N, x, y, λs, Ein, c = fn_params
     @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
@@ -611,29 +840,54 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = rp .* cosθ
+    rp_cosθ = -rp .* cosθ
+    rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+    if magnetic == false
+        
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
-    M10 = M01
-    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M10 = M01
+        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
-    M20 = -rp .* sinθ .* cosϕ
-    M21 = -rp .* sinθ .* sinϕ
+        M20 = -rp .* sinθ .* cosϕ
+        M21 = -rp .* sinθ .* sinϕ
 
-    Epx = M00 .* Ex .+ M01 .* Ey
-    Epy = M10 .* Ex .+ M11 .* Ey
-    Epz = M20 .* Ex .+ M21 .* Ey
+        Epx = M00 .* Ex .+ M01 .* Ey
+        Epy = M10 .* Ex .+ M11 .* Ey
+        Epz = M20 .* Ex .+ M21 .* Ey
 
-    return Epx, Epy, Epz
+        return Epx, Epy, Epz
+    else
+
+        Hx = Ex / 376
+        Hy = Ey / 376
+
+        M00 = sinϕ_cosϕ .* (rs_cosθ .- rp)
+        M01 = -rs_cosθ .* cosϕ.^2 .+ rp .* sinϕ.^2
+
+        M10 = -M01
+        M11 = -M00
+
+        M20 = -rs .* sinθ .* sinϕ
+        M21 = rs .* sinθ .* cosϕ
+
+        Hpx = M00 .* Hx .+ M01 .* Hy
+        Hpy = M10 .* Hx .+ M11 .* Hy
+        Hpz = M20 .* Hx .+ M21 .* Hy
+
+        return Hpx, Hpy, Hpz
+
+    end
 end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real, 
-                        ::RHC, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs, Ein = fn_params
+                        ::RHC, Z::Vector; verbose=false, aberration=false, hole=false, magnetic=false)
+
+    @unpack N, x, y, λs, Ein, c = fn_params
     @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
@@ -677,29 +931,54 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = rp .* cosθ
+    rp_cosθ = -rp .* cosθ
+    rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+    if magnetic == false
+        
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
-    M10 = M01
-    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M10 = M01
+        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
-    M20 = -rp .* sinθ .* cosϕ
-    M21 = -rp .* sinθ .* sinϕ
+        M20 = -rp .* sinθ .* cosϕ
+        M21 = -rp .* sinθ .* sinϕ
 
-    Epx = M00 .* Ex .+ M01 .* Ey
-    Epy = M10 .* Ex .+ M11 .* Ey
-    Epz = M20 .* Ex .+ M21 .* Ey
+        Epx = M00 .* Ex .+ M01 .* Ey
+        Epy = M10 .* Ex .+ M11 .* Ey
+        Epz = M20 .* Ex .+ M21 .* Ey
 
-    return Epx, Epy, Epz
+        return Epx, Epy, Epz
+    else
+
+        Hx = Ex / 376
+        Hy = Ey / 376
+
+        M00 = sinϕ_cosϕ .* (rs_cosθ .- rp)
+        M01 = -rs_cosθ .* cosϕ.^2 .+ rp .* sinϕ.^2
+
+        M10 = -M01
+        M11 = -M00
+
+        M20 = -rs .* sinθ .* sinϕ
+        M21 = rs .* sinθ .* cosϕ
+
+        Hpx = M00 .* Hx .+ M01 .* Hy
+        Hpy = M10 .* Hx .+ M11 .* Hy
+        Hpz = M20 .* Hx .+ M21 .* Hy
+
+        return Hpx, Hpy, Hpz
+
+    end
 end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real, 
-                        ::LHC, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs, Ein = fn_params
+                        ::LHC, Z::Vector; verbose=false, aberration=false, hole=false, magnetic=false)
+
+    @unpack N, x, y, λs, Ein, c = fn_params
     @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
@@ -743,29 +1022,54 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = rp .* cosθ
+    rp_cosθ = -rp .* cosθ
+    rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+    if magnetic == false
+        
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
-    M10 = M01
-    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M10 = M01
+        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
-    M20 = -rp .* sinθ .* cosϕ
-    M21 = -rp .* sinθ .* sinϕ
+        M20 = -rp .* sinθ .* cosϕ
+        M21 = -rp .* sinθ .* sinϕ
 
-    Epx = M00 .* Ex .+ M01 .* Ey
-    Epy = M10 .* Ex .+ M11 .* Ey
-    Epz = M20 .* Ex .+ M21 .* Ey
+        Epx = M00 .* Ex .+ M01 .* Ey
+        Epy = M10 .* Ex .+ M11 .* Ey
+        Epz = M20 .* Ex .+ M21 .* Ey
 
-    return Epx, Epy, Epz
+        return Epx, Epy, Epz
+    else
+
+        Hx = Ex / 376
+        Hy = Ey / 376
+
+        M00 = sinϕ_cosϕ .* (rs_cosθ .- rp)
+        M01 = -rs_cosθ .* cosϕ.^2 .+ rp .* sinϕ.^2
+
+        M10 = -M01
+        M11 = -M00
+
+        M20 = -rs .* sinθ .* sinϕ
+        M21 = rs .* sinθ .* cosϕ
+
+        Hpx = M00 .* Hx .+ M01 .* Hy
+        Hpy = M10 .* Hx .+ M11 .* Hy
+        Hpz = M20 .* Hx .+ M21 .* Hy
+
+        return Hpx, Hpy, Hpz
+
+    end
 end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
-                        ::Radial, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs, Ein = fn_params
+                        ::Radial, Z::Vector; verbose=false, aberration=false, hole=false, magnetic=false)
+
+    @unpack N, x, y, λs, Ein, c = fn_params
     @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
@@ -809,29 +1113,54 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = rp .* cosθ
+    rp_cosθ = -rp .* cosθ
+    rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+    if magnetic == false
+        
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
-    M10 = M01
-    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M10 = M01
+        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
-    M20 = -rp .* sinθ .* cosϕ
-    M21 = -rp .* sinθ .* sinϕ
+        M20 = -rp .* sinθ .* cosϕ
+        M21 = -rp .* sinθ .* sinϕ
 
-    Epx = M00 .* Ex .+ M01 .* Ey
-    Epy = M10 .* Ex .+ M11 .* Ey
-    Epz = M20 .* Ex .+ M21 .* Ey
+        Epx = M00 .* Ex .+ M01 .* Ey
+        Epy = M10 .* Ex .+ M11 .* Ey
+        Epz = M20 .* Ex .+ M21 .* Ey
 
-    return Epx, Epy, Epz
+        return Epx, Epy, Epz
+    else
+
+        Hx = Ex / 376
+        Hy = Ey / 376
+
+        M00 = sinϕ_cosϕ .* (rs_cosθ .- rp)
+        M01 = -rs_cosθ .* cosϕ.^2 .+ rp .* sinϕ.^2
+
+        M10 = -M01
+        M11 = -M00
+
+        M20 = -rs .* sinθ .* sinϕ
+        M21 = rs .* sinθ .* cosϕ
+
+        Hpx = M00 .* Hx .+ M01 .* Hy
+        Hpy = M10 .* Hx .+ M11 .* Hy
+        Hpz = M20 .* Hx .+ M21 .* Hy
+
+        return Hpx, Hpy, Hpz
+
+    end
 end
 
 
 function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
-                        ::Azimuthal, Z::Vector; verbose=false, aberration=false, hole=false)
-    @unpack N, x, y, λs, Ein = fn_params
+                        ::Azimuthal, Z::Vector; verbose=false, aberration=false, hole=false, magnetic=false)
+
+    @unpack N, x, y, λs, Ein, c = fn_params
     @unpack w, θ, ϕ = diff_params
 
     cosθ = cos.(θ)
@@ -875,23 +1204,47 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = rp .* cosθ
+    rp_cosθ = -rp .* cosθ
+    rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
-    M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-    M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+    if magnetic == false
+        
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
-    M10 = M01
-    M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M10 = M01
+        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
-    M20 = -rp .* sinθ .* cosϕ
-    M21 = -rp .* sinθ .* sinϕ
+        M20 = -rp .* sinθ .* cosϕ
+        M21 = -rp .* sinθ .* sinϕ
 
-    Epx = M00 .* Ex .+ M01 .* Ey
-    Epy = M10 .* Ex .+ M11 .* Ey
-    Epz = M20 .* Ex .+ M21 .* Ey
+        Epx = M00 .* Ex .+ M01 .* Ey
+        Epy = M10 .* Ex .+ M11 .* Ey
+        Epz = M20 .* Ex .+ M21 .* Ey
 
-    return Epx, Epy, Epz
+        return Epx, Epy, Epz
+    else
+
+        Hx = Ex / 376
+        Hy = Ey / 376
+
+        M00 = sinϕ_cosϕ .* (rs_cosθ .- rp)
+        M01 = -rs_cosθ .* cosϕ.^2 .+ rp .* sinϕ.^2
+
+        M10 = -M01
+        M11 = -M00
+
+        M20 = -rs .* sinθ .* sinϕ
+        M21 = rs .* sinθ .* cosϕ
+
+        Hpx = M00 .* Hx .+ M01 .* Hy
+        Hpy = M10 .* Hx .+ M11 .* Hy
+        Hpz = M20 .* Hx .+ M21 .* Hy
+
+        return Hpx, Hpy, Hpz
+
+    end
 end
 
 println("Polarization.jl compiled")
