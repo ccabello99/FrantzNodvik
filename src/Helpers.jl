@@ -616,9 +616,9 @@ function Visualize3D(Pol::String, Comp::String, fn_params::FN_Params, diff_param
     @unpack N = fn_params
     
     if typeof(l) == Vector{Float64}
-        Ef, x, y, z = FullSpatialProfile(fn_params, diff_params, Pol, zmin, zmax, zsteps, Z, l=l, coeffs=coeffs)
+        Ef, x, y, z = FullSpatialProfile(fn_params, diff_params, Pol, zmin, zmax, zsteps, l, Z, coeffs=coeffs)
     else
-        Ef, x, y, z = FullSpatialProfile(fn_params, diff_params, Pol, zmin, zmax, zsteps, Z, l=l)
+        Ef, x, y, z = FullSpatialProfile(fn_params, diff_params, Pol, zmin, zmax, zsteps, l, Z)
     end
 
     if intensity
@@ -941,6 +941,7 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
                 cd("..")
             else
                 display(fig)
+                sleep(0.001)
             end
         elseif Comp == "x"
             if intensity
@@ -955,6 +956,7 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
                     cd("..")
                 else
                     display(fig)
+                    sleep(0.001)
                 end
             elseif phase
                 ϕ = angle.(Ef[1])
@@ -971,6 +973,7 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
                     cd("..")
                 else
                     display(fig)
+                    sleep(0.001)
                 end
             else
                 fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, real.(Ef[1]), colormap=:thermometer)
@@ -984,6 +987,7 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
                     cd("..")
                 else
                     display(fig)
+                    sleep(0.001)
                 end
             end
 
@@ -1000,6 +1004,7 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
                     cd("..")
                 else
                     display(fig)
+                    sleep(0.001)
                 end
             elseif phase
                 ϕ = angle.(Ef[2])
@@ -1016,6 +1021,7 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
                     cd("..")
                 else
                     display(fig)
+                    sleep(0.001)
                 end
             else
                 fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, real.(Ef[2]), colormap=:thermometer)
@@ -1029,6 +1035,7 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
                     cd("..")
                 else
                     display(fig)
+                    sleep(0.001)
                 end
             end
 
@@ -1045,6 +1052,7 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
                     cd("..")
                 else
                     display(fig)
+                    sleep(0.001)
                 end
             elseif phase
                 ϕ = angle.(Ef[3])
@@ -1061,6 +1069,7 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
                     cd("..")
                 else
                     display(fig)
+                    sleep(0.001)
                 end
             else
                 fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, real.(Ef[3]), colormap=:thermometer)
@@ -1074,6 +1083,7 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
                     cd("..")
                 else
                     display(fig)
+                    sleep(0.001)
                 end
             end
             
@@ -1111,11 +1121,13 @@ function DiffractionMovie(Comp::String, Ex::Array, Ey::Array, Ez::Array,
             ax.ylabel = L"\textbf{y (μm)}"
             ax.title = "Total intensity @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
             cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Peak intensity (arb. u)}")
-            display(fig)
             if save
                 cd("DiffractionMovie-Images")
                 Makie.save("Itot_z"*string(i)*".png", fig)
                 cd("..")
+            else
+                display(fig)
+                sleep(0.001)
             end
         end
 
@@ -1130,11 +1142,13 @@ function DiffractionMovie(Comp::String, Ex::Array, Ey::Array, Ez::Array,
                 ax.ylabel = L"\textbf{y (μm)}"
                 ax.title = "Intensity (x-comp.) @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
                 cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Peak intensity (arb. u)}")
-                display(fig)
                 if save
                     cd("DiffractionMovie-Images")
                     Makie.save("Ix_z"*string(i)*".png", fig)
                     cd("..")
+                else
+                    display(fig)
+                    sleep(0.001)
                 end
             end
         else
@@ -1145,11 +1159,13 @@ function DiffractionMovie(Comp::String, Ex::Array, Ey::Array, Ez::Array,
                 ax.ylabel = L"\textbf{y (μm)}"
                 ax.title = "Electric field (x-comp.) @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
                 cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Field strength (arb. u)}")
-                display(fig)
                 if save
                     cd("DiffractionMovie-Images")
                     Makie.save("Ex_z"*string(i)*".png", fig)
                     cd("..")
+                else
+                    display(fig)
+                    sleep(0.001)
                 end
             end
         end
@@ -1165,11 +1181,13 @@ function DiffractionMovie(Comp::String, Ex::Array, Ey::Array, Ez::Array,
                 ax.ylabel = L"\textbf{y (μm)}"
                 ax.title = "Intensity (y-comp.) @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
                 cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Peak intensity (arb. u)}")
-                display(fig)
                 if save
                     cd("DiffractionMovie-Images")
                     Makie.save("Iy_z"*string(i)*".png", fig)
                     cd("..")
+                else
+                    display(fig)
+                    sleep(0.001)
                 end
             end
         else
@@ -1180,11 +1198,13 @@ function DiffractionMovie(Comp::String, Ex::Array, Ey::Array, Ez::Array,
                 ax.ylabel = L"\textbf{y (μm)}"
                 ax.title = "Electric field (y-comp.) @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
                 cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Field strength (arb. u)}")
-                display(fig)
                 if save
                     cd("DiffractionMovie-Images")
                     Makie.save("Ey_z"*string(i)*".png", fig)
                     cd("..")
+                else
+                    display(fig)
+                    sleep(0.001)
                 end
             end
         end
@@ -1200,11 +1220,13 @@ function DiffractionMovie(Comp::String, Ex::Array, Ey::Array, Ez::Array,
                 ax.ylabel = L"\textbf{y (μm)}"
                 ax.title = "Intensity (z-comp.) @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
                 cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Peak intensity (arb. u)}")
-                display(fig)
                 if save
                     cd("DiffractionMovie-Images")
                     Makie.save("Iz_z"*string(i)*".png", fig)
                     cd("..")
+                else
+                    display(fig)
+                    sleep(0.001)
                 end
             end
         else
@@ -1215,15 +1237,104 @@ function DiffractionMovie(Comp::String, Ex::Array, Ey::Array, Ez::Array,
                 ax.ylabel = L"\textbf{y (μm)}"
                 ax.title = "Electric field (z-comp.) @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
                 cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Field strength (arb. u)}")
-                display(fig)
                 if save
                     cd("DiffractionMovie-Images")
                     Makie.save("Ez_z"*string(i)*".png", fig)
                     cd("..0")
+                else
+                    display(fig)
+                    sleep(0.001)
                 end
             end
         end
 
+    end
+
+end
+
+function DiffractionMovie(Comp::String, st::Array, sz::Array, Lt::Array, Lz::Array, 
+                            x::Vector, y::Vector, z::Vector; save=false)
+
+
+    if save
+        if isdir("DiffractionMovie-Images")
+            nothing
+        else
+            mkdir("DiffractionMovie-Images")
+        end
+    end
+
+    if Comp == "St"
+
+        foreach(eachindex(z)) do i
+            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, st[:, :, i], colorrange=(0, 1), colormap=:thermometer)
+            ax.xlabel = L"\textbf{x (μm)}"
+            ax.ylabel = L"\textbf{y (μm)}"
+            ax.title = "Transverse SAM Density @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
+            cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{SAM Density (arb. u)}")
+            if save
+                cd("DiffractionMovie-Images")
+                Makie.save("St_z"*string(i)*".png", fig)
+                cd("..")
+            else
+                display(fig)
+                sleep(0.001)
+            end
+        end
+
+    elseif Comp == "Sz"
+
+        foreach(eachindex(z)) do i
+            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, sz[:, :, i], colormap=:thermometer)
+            ax.xlabel = L"\textbf{x (μm)}"
+            ax.ylabel = L"\textbf{y (μm)}"
+            ax.title = "Longitudinal SAM Density @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
+            cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{SAM Density (arb. u)}")
+            if save
+                cd("DiffractionMovie-Images")
+                Makie.save("Sz_z"*string(i)*".png", fig)
+                cd("..")
+            else
+                display(fig)
+                sleep(0.001)
+            end
+        end
+
+    elseif Comp == "Lt"
+
+        foreach(eachindex(z)) do i
+            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, Lt[:, :, i], colormap=:inferno)
+            ax.xlabel = L"\textbf{x (μm)}"
+            ax.ylabel = L"\textbf{y (μm)}"
+            ax.title = "Transverse OAM Density @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
+            cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{Field strength (arb. u)}")
+            if save
+                cd("DiffractionMovie-Images")
+                Makie.save("Lt_z"*string(i)*".png", fig)
+                cd("..")
+            else
+                display(fig)
+                sleep(0.001)
+            end
+        end
+
+    elseif Comp == "Lz"
+
+        foreach(eachindex(z)) do i
+            fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, Lz[:, :, i], colorrange=(0, 1), colormap=:inferno)
+            ax.xlabel = L"\textbf{x (μm)}"
+            ax.ylabel = L"\textbf{y (μm)}"
+            ax.title = "Longitudinal OAM Density @ z = "*string(round(z[i]*1e6, digits=2))*" μm"
+            cbar = Colorbar(fig[1, 2], hm, label=L"\textbf{OAM Density (arb. u)}")
+            if save
+                cd("DiffractionMovie-Images")
+                Makie.save("Lz_z"*string(i)*".png", fig)
+                cd("..")
+            else
+                display(fig)
+                sleep(0.001)
+            end
+        end
     end
 
 end

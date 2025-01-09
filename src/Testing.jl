@@ -18,9 +18,9 @@ Z = ZernikeCoefficients(0, 0, 0, 0, 0, 1.0, 0, 0.0, 0, 0, 0)
 #diff_params = Diffract{Float64}(fn_params, 54.4e-3, 1.36, 19e-3, 1.0)
 diff_params = Diffract{Float64}(fn_params, 54.4e-3, 1.36, 12.5e-3, 1.0)
 
-Pol = RHC()
+Pol = Radial()
 z0 = 0e-6
-l = 1
+l = 0
 
 #Ef, xf, yf = RichardsWolf(fn_params, diff_params, Pol, z0, l, Z, aberration=false, hole=false, verbose=true);
 #Hf, xf, yf = RichardsWolf(fn_params, diff_params, Pol, z0, l, Z, aberration=false, hole=false, verbose=true, magnetic=true);

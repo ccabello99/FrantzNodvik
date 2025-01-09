@@ -154,11 +154,7 @@ function RichardsWolf(fn_params::FN_Params, diff_params::Diffract,
         Efz .= factor .* fftshift(fft(fftshift(tempz_horpad, 2), 2), 2)[:, pad_range]
 
     end
-
-    #Efx .= Matrix(transpose(Efx))
-    #Efy .= Matrix(transpose(Efy))
-    #Efz .= Matrix(transpose(Efz))
-
+    
     Ef = [Efx, Efy, Efz]
 
     freq_nyquist_x = 1 / (2 * dx)
