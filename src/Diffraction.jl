@@ -181,7 +181,11 @@ function RichardsWolf(fn_params::FN_Params, diff_params::Diffract,
         Aeff = calcAeff(xf, yf, I_focus)
         println("Effective area = ", round(Aeff*1e12, digits=2), " μm^2")
         Ppeak = 0.94 * E_focus / 3.8e-15
-        I_target = Ppeak / Aeff
+        if l == 0
+            I_target = 2 * Ppeak / Aeff
+        else
+            I_target = Ppeak / Aeff
+        end
         println("Peak intensity @ focus = ", round(I_target * 1e-4, digits=3), " W/cm^2")
         E_focus = calcEnergy(xf, yf, abs2.(Efx))
         println("Energy  in x-component @ focus = ", round(E_focus * 1e3, digits=5), " mJ")
