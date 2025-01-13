@@ -15,7 +15,7 @@ mutable struct Diffract{T}
 
     function Diffract{T}(fn_params::FN_Params, f::Real, fnum::Real, 
                             w::Real, nt::Real) where T
-        @unpack λs, x, y, N = fn_params
+        @unpack λs, x, y, x0, y0, N = fn_params
 
         # Parameters
         R = f / (fnum * 2)
@@ -27,14 +27,14 @@ mutable struct Diffract{T}
         aperture = circular_aperture(fn_params, R)
         if N % 2 != 0
             n = Int((N-1)/2 + 1)
-            m = Int((count(!iszero, aperture[n, :]) - 1) / 2)
+            m = Int((count(!iszero, aperture[:, n]) - 1) / 2)
         else
             n = Int(N/2)
             m = Int((count(!iszero, aperture[n, :])) / 2)
         end
 
         # Grid
-        X, Y = meshgrid(x, y)
+        X, Y = meshgrid(x .- x0, y .- y0)
         r = sqrt.(X.^2 .+ Y.^2)
         θ = r ./ f
         ϕ = atan.(Y, X)
@@ -77,7 +77,9 @@ function TransmissionFunction(fn_params::FN_Params, diff_params::Diffract,
         It_trans = abs2.(Etx) + abs2.(Ety) + abs2.(Etz)
         E_trans = calcEnergy(x, y, It_trans)
         println("Energy after parabola = ", round(E_trans * 1e3, digits=3), " mJ")
-        w0_x, w0_y = e22D(x, y, It_trans)
+        I = findmax(It_trans)[2]
+        maxx_index, maxy_index = I[1], I[2]
+        w0_x, w0_y = e22D(x, y, maxx_index, maxy_index, It_trans)
         println("Beam waist (1/e2) on parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
     end
 
@@ -165,6 +167,7 @@ function RichardsWolf(fn_params::FN_Params, diff_params::Diffract,
     xf = kx .* (λs / sinθmax * (m / (M)))
     yf = ky .* (λs / sinθmax * (m / (M)))
 
+
     # Print some useful info about focus field
     if verbose
         NA = 1 / (2 * diff_params.fnum)
@@ -174,9 +177,11 @@ function RichardsWolf(fn_params::FN_Params, diff_params::Diffract,
         I_focus = abs2.(Efx) .+ abs2.(Efy) .+ abs2.(Efz)
         E_focus = calcEnergy(xf, yf, I_focus)
         println("Energy @ focus = ", round(E_focus * 1e3, digits=3), " mJ")
-        w0_x, w0_y = e22D(xf, yf, I_focus)
+        I = findmax(I_focus)[2]
+        maxx_index, maxy_index = I[1], I[2]
+        w0_x, w0_y = e22D(xf, yf, maxx_index, maxy_index, I_focus)
         println("Beam waist (e2) @ focus =", round(w0_x*1e6, digits=2), " μm x ", round(w0_y*1e6, digits=2), " μm")
-        w0_x, w0_y = FWHM2D(xf, yf, I_focus)
+        w0_x, w0_y = FWHM2D(xf, yf, maxx_index, maxy_index, I_focus)
         println("Beam waist (FWHM) @ focus =", round(w0_x*1e6, digits=2), " μm x ", round(w0_y*1e6, digits=2), " μm")
         Aeff = calcAeff(xf, yf, I_focus)
         println("Effective area = ", round(Aeff*1e12, digits=2), " μm^2")
@@ -249,6 +254,7 @@ function SpatioTemporalVectorDiffraction(fn_params::FN_Params, diff_params::Diff
 
     # Define spectral profile
     if spectdata
+
         cd("input_data")
         λ, Iλ, ϕ = readSpect(fn_params, "sample-spect.txt")
         λ_samples = collect(range(500e-9, λ[end], 65))
@@ -260,6 +266,24 @@ function SpatioTemporalVectorDiffraction(fn_params::FN_Params, diff_params::Diff
         norm = NumericalIntegration.integrate(ν_samples, sqrt.(Iν))
         Eν_samples = sqrt.(Iν) .* exp.(1im .* ϕν) ./ norm
         cd("..")
+        
+    elseif harmonic
+
+        cd("input_data")
+        ν = CSV.read("input_data/SpectrumInTIPTOE.txt", DataFrame)[!,1] .* 1.602177e-19 ./ h
+        cd("..")
+        Iν_n(ν) = ν.^(-3)
+        # Define grid for wavelength sampling
+        ν_samples = collect(range(ν[1], ν[end], νsteps))
+        dν = ν_samples[2] - ν_samples[1]
+        λ_samples = collect(c ./ reverse(ν_samples))
+        Iν_nn = Iν_n.(ν_samples)
+
+        # Sampled spectrum + define spectral phase
+        norm = NumericalIntegration.integrate(ν_samples, sqrt(Iν_nn))
+        ϕ = 0
+        Eν_samples = sqrt(Iν_nn) .* exp.(1im .* ϕ) ./ norm
+
     else
             
         Δν = 2 * log(2) / (π * τs)

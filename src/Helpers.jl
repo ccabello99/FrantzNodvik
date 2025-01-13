@@ -242,6 +242,34 @@ function e22D(x, y, A)
     return w0_x, w0_y
 end
 
+function FWHM2D(x, y, max_index1, max_index2, A)
+    N = size(A)[1]
+
+    if N % 2 != 0
+        w0_x = FWHM(x, A[:, max_index2]) / 2
+        w0_y = FWHM(y, A[max_index1, :]) / 2
+    else
+        w0_x = FWHM(x, A[:, max_index2]) / 2
+        w0_y = FWHM(y, A[max_index1, :]) / 2
+    end
+
+    return w0_x, w0_y
+end
+
+function e22D(x, y, max_index1, max_index2, A)
+    N = size(A)[1]
+
+    if N % 2 != 0
+        w0_x = e2(x, A[:, max_index2]) / 2
+        w0_y = e2(y, A[max_index1, :]) / 2
+    else
+        w0_x = e2(x, A[:, max_index2]) / 2
+        w0_y = e2(y, A[max_index1, :]) / 2
+    end
+
+    return w0_x, w0_y
+end
+
 function HoleyMirror!(fn_params::FN_Params, x0::Real, y0::Real, R::Real, E::Matrix)
 
     @unpack x, y = fn_params                        
@@ -309,6 +337,23 @@ function readSpect(fn_params::FN_Params, SpectData::String)
 
     I(λ) = spl1(λ)
     ϕ(λ) = spl2(λ)
+
+    return wl, I, ϕ
+
+end
+
+function readHarmonicSpect(fn_params::FN_Params, SpectData::String)
+    @unpack h, c = fn_params
+
+    data = CSV.read(SpectData, DataFrame)
+    conv = h * c / 1.602177e-19
+    wl = (conv ./ data[!, 1])[:]
+    I_ret = data[!, 2]
+
+    spl1 = Spline1D(wl, I_ret, k=3)
+
+    I(λ) = spl1(λ)
+    ϕ(λ) = 0
 
     return wl, I, ϕ
 
@@ -937,7 +982,7 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
                 cd("..")
             else
                 display(fig)
-                sleep(0.001)
+                sleep(0.01)
             end
         elseif Comp == "x"
             if intensity
@@ -952,7 +997,7 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
                     cd("..")
                 else
                     display(fig)
-                    sleep(0.001)
+                    sleep(0.01)
                 end
             elseif phase
                 ϕ = angle.(Ef[1])
@@ -969,7 +1014,7 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
                     cd("..")
                 else
                     display(fig)
-                    sleep(0.001)
+                    sleep(0.01)
                 end
             else
                 fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, real.(Ef[1]), colormap=:thermometer)
@@ -983,7 +1028,7 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
                     cd("..")
                 else
                     display(fig)
-                    sleep(0.001)
+                    sleep(0.01)
                 end
             end
 
@@ -1000,7 +1045,7 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
                     cd("..")
                 else
                     display(fig)
-                    sleep(0.001)
+                    sleep(0.01)
                 end
             elseif phase
                 ϕ = angle.(Ef[2])
@@ -1017,7 +1062,7 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
                     cd("..")
                 else
                     display(fig)
-                    sleep(0.001)
+                    sleep(0.01)
                 end
             else
                 fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, real.(Ef[2]), colormap=:thermometer)
@@ -1031,7 +1076,7 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
                     cd("..")
                 else
                     display(fig)
-                    sleep(0.001)
+                    sleep(0.01)
                 end
             end
 
@@ -1048,7 +1093,7 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
                     cd("..")
                 else
                     display(fig)
-                    sleep(0.001)
+                    sleep(0.01)
                 end
             elseif phase
                 ϕ = angle.(Ef[3])
@@ -1065,7 +1110,7 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
                     cd("..")
                 else
                     display(fig)
-                    sleep(0.001)
+                    sleep(0.01)
                 end
             else
                 fig, ax, hm = CairoMakie.heatmap(x.*1e6, y.*1e6, real.(Ef[3]), colormap=:thermometer)
@@ -1079,7 +1124,7 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
                     cd("..")
                 else
                     display(fig)
-                    sleep(0.001)
+                    sleep(0.01)
                 end
             end
             
@@ -1123,7 +1168,7 @@ function DiffractionMovie(Comp::String, Ex::Array, Ey::Array, Ez::Array,
                 cd("..")
             else
                 display(fig)
-                sleep(0.001)
+                sleep(0.01)
             end
         end
 
@@ -1144,7 +1189,7 @@ function DiffractionMovie(Comp::String, Ex::Array, Ey::Array, Ez::Array,
                     cd("..")
                 else
                     display(fig)
-                    sleep(0.001)
+                    sleep(0.01)
                 end
             end
         else
@@ -1161,7 +1206,7 @@ function DiffractionMovie(Comp::String, Ex::Array, Ey::Array, Ez::Array,
                     cd("..")
                 else
                     display(fig)
-                    sleep(0.001)
+                    sleep(0.01)
                 end
             end
         end
@@ -1183,7 +1228,7 @@ function DiffractionMovie(Comp::String, Ex::Array, Ey::Array, Ez::Array,
                     cd("..")
                 else
                     display(fig)
-                    sleep(0.001)
+                    sleep(0.01)
                 end
             end
         else
@@ -1200,7 +1245,7 @@ function DiffractionMovie(Comp::String, Ex::Array, Ey::Array, Ez::Array,
                     cd("..")
                 else
                     display(fig)
-                    sleep(0.001)
+                    sleep(0.01)
                 end
             end
         end
@@ -1222,7 +1267,7 @@ function DiffractionMovie(Comp::String, Ex::Array, Ey::Array, Ez::Array,
                     cd("..")
                 else
                     display(fig)
-                    sleep(0.001)
+                    sleep(0.01)
                 end
             end
         else
@@ -1239,7 +1284,7 @@ function DiffractionMovie(Comp::String, Ex::Array, Ey::Array, Ez::Array,
                     cd("..0")
                 else
                     display(fig)
-                    sleep(0.001)
+                    sleep(0.01)
                 end
             end
         end
@@ -1274,7 +1319,7 @@ function DiffractionMovie(Comp::String, st::Array, sz::Array, Lt::Array, Lz::Arr
                 cd("..")
             else
                 display(fig)
-                sleep(0.001)
+                sleep(0.01)
             end
         end
 
@@ -1292,7 +1337,7 @@ function DiffractionMovie(Comp::String, st::Array, sz::Array, Lt::Array, Lz::Arr
                 cd("..")
             else
                 display(fig)
-                sleep(0.001)
+                sleep(0.01)
             end
         end
 
@@ -1310,7 +1355,7 @@ function DiffractionMovie(Comp::String, st::Array, sz::Array, Lt::Array, Lz::Arr
                 cd("..")
             else
                 display(fig)
-                sleep(0.001)
+                sleep(0.01)
             end
         end
 
@@ -1328,7 +1373,7 @@ function DiffractionMovie(Comp::String, st::Array, sz::Array, Lt::Array, Lz::Arr
                 cd("..")
             else
                 display(fig)
-                sleep(0.001)
+                sleep(0.01)
             end
         end
     end

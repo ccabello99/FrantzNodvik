@@ -13,7 +13,9 @@ include("Helpers.jl")
 
 @unpack c = fn_params
 
-Z = ZernikeCoefficients(0, 0, 0, 0, 0, 1.0, 0, 0.0, 0, 0, 0)
+Z = ZernikeCoefficients(0, 0, 0, 0, 0, 0, 0, 0.25, 0, 0, 0)
+
+fn_params = FN_Params{Float64}(xmax=92e-3, ymax=92e-3, x0=25.5e-3, y0=0)
 
 diff_params = Diffract{Float64}(fn_params, 51.25e-3, 1.3, 19e-3, 1.0)
 #diff_params = Diffract{Float64}(fn_params, 51.25e-3, 1.3, 12.5e-3, 1.0)
@@ -22,8 +24,8 @@ Pol = P()
 z0 = 0e-6
 l = 0
 
-Ef, xf, yf = RichardsWolf(fn_params, diff_params, Pol, z0, l, Z, aberration=false, hole=false, verbose=true);
-Hf, xf, yf = RichardsWolf(fn_params, diff_params, Pol, z0, l, Z, aberration=false, hole=false, verbose=true, magnetic=true);
+#Ef, xf, yf = RichardsWolf(fn_params, diff_params, Pol, z0, l, Z, aberration=false, hole=false, verbose=true);
+#Hf, xf, yf = RichardsWolf(fn_params, diff_params, Pol, z0, l, Z, aberration=false, hole=false, verbose=false, magnetic=true);
 
 #Ef, xf, yf, zf = FullSpatialProfile(fn_params, diff_params, Pol, -10e-6, 10e-6, 129, l, Z)
 #Hf, xf, yf, zf = FullSpatialProfile(fn_params, diff_params, Pol, -10e-6, 10e-6, 129, l, Z; magnetic=true)

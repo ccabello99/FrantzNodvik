@@ -41,19 +41,21 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
-        w0_x, w0_y = e22D(x, y, I_in)
+        I = findmax(I_in)[2]
+        maxx_index, maxy_index = I[1], I[2]
+        w0_x, w0_y = e22D(x, y, maxx_index, maxy_index, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = -rp .* cosθ
+    rp_cosθ = rp .* cosθ
     rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
     
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.-2 .- rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
         M10 = M01
@@ -114,7 +116,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     end
 
     if hole
-        Ey = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ey)
+        Ey = HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ey)
     end
 
 
@@ -128,21 +130,22 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
-        w0_x, w0_y = e22D(x, y, I_in)
+        I = findmax(I_in)[2]
+        maxx_index, maxy_index = I[1], I[2]
+        w0_x, w0_y = e22D(x, y, maxx_index, maxy_index, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = -rp .* cosθ
+    rp_cosθ = rp .* cosθ
     rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-
-        M10 = M01
++        M10 = M01
         M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
         M20 = -rp .* sinθ .* cosϕ
@@ -202,8 +205,8 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     end
 
     if hole
-        Ex = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ex)
-        Ey = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ey)
+        Ex = HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ex)
+        Ey = HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ey)
     end
 
     scaleField!(x, y, Ex, Ey, Ein)
@@ -216,21 +219,22 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
-        w0_x, w0_y = e22D(x, y, I_in)
+        I = findmax(I_in)[2]
+        maxx_index, maxy_index = I[1], I[2]
+        w0_x, w0_y = e22D(x, y, maxx_index, maxy_index, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = -rp .* cosθ
+    rp_cosθ = rp .* cosθ
     rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-
-        M10 = M01
++        M10 = M01
         M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
         M20 = -rp .* sinθ .* cosϕ
@@ -290,8 +294,8 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     end
 
     if hole
-        Ex = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ex)
-        Ey = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ey)
+        Ex = HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ex)
+        Ey = HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ey)
     end
 
 
@@ -305,21 +309,22 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
-        w0_x, w0_y = e22D(x, y, I_in)
+        I = findmax(I_in)[2]
+        maxx_index, maxy_index = I[1], I[2]
+        w0_x, w0_y = e22D(x, y, maxx_index, maxy_index, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = -rp .* cosθ
+    rp_cosθ = rp .* cosθ
     rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-
-        M10 = M01
++        M10 = M01
         M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
         M20 = -rp .* sinθ .* cosϕ
@@ -379,8 +384,8 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     end
 
     if hole
-        Ex = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ex)
-        Ey = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ey)
+        Ex = HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ex)
+        Ey = HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ey)
     end
 
 
@@ -394,21 +399,22 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
-        w0_x, w0_y = e22D(x, y, I_in)
+        I = findmax(I_in)[2]
+        maxx_index, maxy_index = I[1], I[2]
+        w0_x, w0_y = e22D(x, y, maxx_index, maxy_index, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = -rp .* cosθ
+    rp_cosθ = rp .* cosθ
     rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-
-        M10 = M01
++        M10 = M01
         M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
         M20 = -rp .* sinθ .* cosϕ
@@ -468,8 +474,8 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     end
 
     if hole
-        Ex = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ex)
-        Ey = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ey)
+        Ex = HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ex)
+        Ey = HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ey)
     end
 
 
@@ -483,21 +489,22 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
-        w0_x, w0_y = e22D(x, y, I_in)
+        I = findmax(I_in)[2]
+        maxx_index, maxy_index = I[1], I[2]
+        w0_x, w0_y = e22D(x, y, maxx_index, maxy_index, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = -rp .* cosθ
+    rp_cosθ = rp .* cosθ
     rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-
-        M10 = M01
++        M10 = M01
         M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
         M20 = -rp .* sinθ .* cosϕ
@@ -557,8 +564,8 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     end
 
     if hole
-        Ex = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ex)
-        Ey = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ey)
+        Ex = HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ex)
+        Ey = HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ey)
     end
 
 
@@ -572,21 +579,22 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
-        w0_x, w0_y = e22D(x, y, I_in)
+        I = findmax(I_in)[2]
+        maxx_index, maxy_index = I[1], I[2]
+        w0_x, w0_y = e22D(x, y, maxx_index, maxy_index, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = -rp .* cosθ
+    rp_cosθ = rp .* cosθ
     rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-
-        M10 = M01
++        M10 = M01
         M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
         M20 = -rp .* sinθ .* cosϕ
@@ -642,7 +650,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
     end
 
     if hole
-        Ex = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ex)
+        Ex = HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ex)
     end
 
     scaleField!(x, y, Ex, Ey, Ein)
@@ -657,21 +665,22 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
-        w0_x, w0_y = e22D(x, y, I_in)
+        I = findmax(I_in)[2]
+        maxx_index, maxy_index = I[1], I[2]
+        w0_x, w0_y = e22D(x, y, maxx_index, maxy_index, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = -rp .* cosθ
+    rp_cosθ = rp .* cosθ
     rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-
-        M10 = M01
++        M10 = M01
         M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
         M20 = -rp .* sinθ .* cosϕ
@@ -728,7 +737,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
     end
 
     if hole
-        Ey = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ey)
+        Ey = HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ey)
     end
 
 
@@ -744,21 +753,22 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
-        w0_x, w0_y = e22D(x, y, I_in)
+        I = findmax(I_in)[2]
+        maxx_index, maxy_index = I[1], I[2]
+        w0_x, w0_y = e22D(x, y, maxx_index, maxy_index, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = -rp .* cosθ
+    rp_cosθ = rp .* cosθ
     rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-
-        M10 = M01
++        M10 = M01
         M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
         M20 = -rp .* sinθ .* cosϕ
@@ -818,8 +828,8 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
     end
 
     if hole
-        Ex = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ex)
-        Ey = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ey)
+        Ex = HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ex)
+        Ey = HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ey)
     end
 
     scaleField!(x, y, Ex, Ey, Ein)
@@ -834,21 +844,22 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
-        w0_x, w0_y = e22D(x, y, I_in)
+        I = findmax(I_in)[2]
+        maxx_index, maxy_index = I[1], I[2]
+        w0_x, w0_y = e22D(x, y, maxx_index, maxy_index, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = -rp .* cosθ
+    rp_cosθ = rp .* cosθ
     rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-
-        M10 = M01
++        M10 = M01
         M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
         M20 = -rp .* sinθ .* cosϕ
@@ -908,8 +919,8 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
     end
 
     if hole
-        Ex = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ex)
-        Ey = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ey)
+        Ex = HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ex)
+        Ey = HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ey)
         end
 
 
@@ -922,23 +933,24 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
         @show OAM
         Pol = "right-hand circularly-polarized"
         @show Pol
-        I_in = abs2.(Ex) + abs2.(Ey)
+        I_in = abs2.(Ex) .+ abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
-        w0_x, w0_y = e22D(x, y, I_in)
+        I = findmax(I_in)[2]
+        maxx_index, maxy_index = I[1], I[2]
+        w0_x, w0_y = e22D(x, y, maxx_index, maxy_index, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = -rp .* cosθ
+    rp_cosθ = rp .* cosθ
     rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-
         M10 = M01
         M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
@@ -999,8 +1011,8 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
     end
 
     if hole
-        Ex = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ex)
-        Ey = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ey)
+        Ex = HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ex)
+        Ey = HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ey)
     end
 
 
@@ -1013,24 +1025,25 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
         @show OAM
         Pol = "left-hand circularly-polarized"
         @show Pol
-        I_in = abs2.(Ex) + abs2.(Ey)
+        I_in = abs2.(Ex) .+ abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
-        w0_x, w0_y = e22D(x, y, I_in)
+        I = findmax(I_in)[2]
+        maxx_index, maxy_index = I[1], I[2]
+        w0_x, w0_y = e22D(x, y, maxx_index, maxy_index, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = -rp .* cosθ
+    rp_cosθ = rp .* cosθ
     rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-
-        M10 = M01
++        M10 = M01
         M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
         M20 = -rp .* sinθ .* cosϕ
@@ -1090,8 +1103,8 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
     end
 
     if hole
-        Ex = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ex)
-        Ey = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ey)
+        Ex = HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ex)
+        Ey = HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ey)
     end
 
 
@@ -1107,21 +1120,22 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
-        w0_x, w0_y = e22D(x, y, I_in)
+        I = findmax(I_in)[2]
+        maxx_index, maxy_index = I[1], I[2]
+        w0_x, w0_y = e22D(x, y, maxx_index, maxy_index, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = -rp .* cosθ
+    rp_cosθ = rp .* cosθ
     rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-
-        M10 = M01
++        M10 = M01
         M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
         M20 = -rp .* sinθ .* cosϕ
@@ -1181,8 +1195,8 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
     end
 
     if hole
-        Ex = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ex)
-        Ey = HoleyMirror(fn_params, -w, 0, 10.25e-3, Ey)
+        Ex = HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ex)
+        Ey = HoleyMirror!(fn_params, -w, 0, 10.25e-3, Ey)
     end
 
 
@@ -1198,21 +1212,22 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
         I_in = abs2.(Ex) + abs2.(Ey)
         E_in = calcEnergy(x, y, I_in)
         println("Energy before parabola = ", round(E_in * 1e3, digits=3), " mJ")
-        w0_x, w0_y = e22D(x, y, I_in)
+        I = findmax(I_in)[2]
+        maxx_index, maxy_index = I[1], I[2]
+        w0_x, w0_y = e22D(x, y, maxx_index, maxy_index, I_in)
         println("Beam spot size (1/e2) before parabola =", round(2*w0_x*1e3, digits=2), " mm x ", round(2*w0_y*1e3, digits=2), " mm")
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = -rp .* cosθ
+    rp_cosθ = rp .* cosθ
     rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-
-        M10 = M01
++        M10 = M01
         M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
 
         M20 = -rp .* sinθ .* cosϕ
