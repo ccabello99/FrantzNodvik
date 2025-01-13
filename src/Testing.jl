@@ -15,18 +15,18 @@ include("Helpers.jl")
 
 Z = ZernikeCoefficients(0, 0, 0, 0, 0, 1.0, 0, 0.0, 0, 0, 0)
 
-#diff_params = Diffract{Float64}(fn_params, 54.4e-3, 1.36, 19e-3, 1.0)
-diff_params = Diffract{Float64}(fn_params, 54.4e-3, 1.36, 12.5e-3, 1.0)
+diff_params = Diffract{Float64}(fn_params, 51.25e-3, 1.3, 19e-3, 1.0)
+#diff_params = Diffract{Float64}(fn_params, 51.25e-3, 1.3, 12.5e-3, 1.0)
 
-Pol = Azimuthal()
+Pol = P()
 z0 = 0e-6
-l = 1
+l = 0
 
-#Ef, xf, yf = RichardsWolf(fn_params, diff_params, Pol, z0, l, Z, aberration=false, hole=false, verbose=true);
-#Hf, xf, yf = RichardsWolf(fn_params, diff_params, Pol, z0, l, Z, aberration=false, hole=false, verbose=true, magnetic=true);
+Ef, xf, yf = RichardsWolf(fn_params, diff_params, Pol, z0, l, Z, aberration=false, hole=false, verbose=true);
+Hf, xf, yf = RichardsWolf(fn_params, diff_params, Pol, z0, l, Z, aberration=false, hole=false, verbose=true, magnetic=true);
 
-Ef, xf, yf, zf = FullSpatialProfile(fn_params, diff_params, Pol, -10e-6, 10e-6, 129, l, Z)
-Hf, xf, yf, zf = FullSpatialProfile(fn_params, diff_params, Pol, -10e-6, 10e-6, 129, l, Z; magnetic=true)
+#Ef, xf, yf, zf = FullSpatialProfile(fn_params, diff_params, Pol, -10e-6, 10e-6, 129, l, Z)
+#Hf, xf, yf, zf = FullSpatialProfile(fn_params, diff_params, Pol, -10e-6, 10e-6, 129, l, Z; magnetic=true)
 
 #fig, ax, hm = GLMakie.heatmap(xf.*1e6, yf.*1e6, abs2.(Ef[1]), colormap=:viridis)
 #ax.xlabel="x (μm)"

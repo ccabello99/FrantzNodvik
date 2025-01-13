@@ -46,14 +46,14 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = -rp .* cosθ
+    rp_cosθ = --rp .* cosθ
     rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
     
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.-2 .- rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
         M10 = M01
@@ -68,8 +68,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
         return Epx, Epy, Epz
         
-    println(
-       "Calculating the magnetic field") else
+    else
 
         Hx = Ex / 376
         Hy = Ey / 376
@@ -120,7 +119,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(0, λs)
+    rp, rs = FresnelCoefficients(12.75, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -140,7 +139,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
         M10 = M01
@@ -208,7 +207,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     end
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(0, λs)
+    rp, rs = FresnelCoefficients(12.75, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -228,7 +227,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
         M10 = M01
@@ -297,7 +296,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(0, λs)
+    rp, rs = FresnelCoefficients(12.75, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -317,7 +316,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
         M10 = M01
@@ -386,7 +385,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(0, λs)
+    rp, rs = FresnelCoefficients(12.75, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -406,7 +405,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
         M10 = M01
@@ -475,7 +474,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(0, λs)
+    rp, rs = FresnelCoefficients(12.75, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -495,7 +494,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
         M10 = M01
@@ -564,7 +563,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(0, λs)
+    rp, rs = FresnelCoefficients(12.75, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -584,7 +583,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
         M10 = M01
@@ -647,7 +646,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
     end
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(0, λs)
+    rp, rs = FresnelCoefficients(12.75, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -669,7 +668,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
         M10 = M01
@@ -734,7 +733,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(0, λs)
+    rp, rs = FresnelCoefficients(12.75, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -756,7 +755,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
         M10 = M01
@@ -824,7 +823,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
     end
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(0, λs)
+    rp, rs = FresnelCoefficients(12.75, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -846,7 +845,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
         M10 = M01
@@ -915,7 +914,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(0, λs)
+    rp, rs = FresnelCoefficients(12.75, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -937,7 +936,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
         M10 = M01
@@ -1006,7 +1005,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(0, λs)
+    rp, rs = FresnelCoefficients(12.75, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -1028,7 +1027,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
         M10 = M01
@@ -1097,7 +1096,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(0, λs)
+    rp, rs = FresnelCoefficients(12.75, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -1119,7 +1118,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
         M10 = M01
@@ -1188,7 +1187,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
 
     scaleField!(x, y, Ex, Ey, Ein)
-    rp, rs = FresnelCoefficients(0, λs)
+    rp, rs = FresnelCoefficients(12.75, λs)
 
     # Print some useful info about initial field
     if verbose
@@ -1210,7 +1209,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
+        M00 = rp_cosθ .* cosϕ.^2 .- rs .* sinϕ.^2
         M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
 
         M10 = M01
