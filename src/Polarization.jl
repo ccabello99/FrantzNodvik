@@ -46,7 +46,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = --rp .* cosθ
+    rp_cosθ = -rp .* cosθ
     rs_cosθ = rs .* cosθ
     sinϕ_cosϕ = sinϕ .* cosϕ
 
