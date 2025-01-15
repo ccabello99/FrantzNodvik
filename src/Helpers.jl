@@ -144,6 +144,20 @@ function circular_aperture(fn_params::FN_Params, R::Real)
     return aperture
 end
 
+function elliptical_aperture(fn_params::FN_Params, a::Real, b::Real)
+    @unpack N, x, y, x0, y0 = fn_params
+
+    aperture = zeros(Float64, N, N)
+
+    X, Y = meshgrid(x, y)
+    x_diff = X .- x0
+    y_diff = Y .- y0
+
+    aperture[(x_diff.^2 ./ a^2) .+ (y_diff.^2 ./ b^2) .<= 1] .= 1
+
+    return aperture
+end
+
 function resize_symmetric(v::AbstractVector, new_size::Int)
     old_size = length(v)
     if old_size == new_size
@@ -1734,6 +1748,16 @@ function loadFieldData()
     z = CSV.read("z.csv", DataFrame)[!,1];
 
     return Ex, Ey, Ez, It, x, y, z
+
+end
+
+function normalize!(I::Array, νsteps::Int)
+
+    for i in 1:νsteps
+
+        I[i,:,:,:] ./= maximum(abs.(I[i,:,:,:]))
+
+    end
 
 end
 

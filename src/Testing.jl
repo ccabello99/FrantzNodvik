@@ -11,18 +11,23 @@ include("Diffraction.jl")
 include("Polarization.jl")
 include("Helpers.jl")
 
-@unpack c = fn_params
+@unpack h, c = fn_params
 
 Z = ZernikeCoefficients(0, 0, 0, 0, 0, 0, 0, 0.25, 0, 0, 0)
 
-fn_params = FN_Params{Float64}(xmax=92e-3, ymax=92e-3, x0=25.5e-3, y0=0)
+#fn_params = FN_Params{Float64}(xmax=100e-3, ymax=100e-3, x0=25.5e-3, y0=0)
 
-diff_params = Diffract{Float64}(fn_params, 51.25e-3, 1.3, 19e-3, 1.0)
+fn_params = FN_Params{Float64}(xmax=500e-3, ymax=500e-3, x0=200e-3, y0=0)
+
+diff_params = Diffract{Float64}(fn_params, 26.795e-3, 10.7, 12.5e-3, 1.0)
 #diff_params = Diffract{Float64}(fn_params, 51.25e-3, 1.3, 12.5e-3, 1.0)
+#diff_params = Diffract{Float64}(fn_params, 26.975e-3, 1.3, 25e-3, 1.0)
 
 Pol = P()
 z0 = 0e-6
 l = 0
+
+aperture = elliptical_aperture(fn_params, 97e-3/2, 25e-3/2)
 
 #Ef, xf, yf = RichardsWolf(fn_params, diff_params, Pol, z0, l, Z, aberration=false, hole=false, verbose=true);
 #Hf, xf, yf = RichardsWolf(fn_params, diff_params, Pol, z0, l, Z, aberration=false, hole=false, verbose=false, magnetic=true);
@@ -44,5 +49,7 @@ l = 0
 
 #DiffractionMovie(P(), "t", fn_params, diff_params, -15e-6, 15e-6, 129, 0, Z, aberration=false, intensity=true, hole=true, phase=false)
 
+
+#E, x, y, z = FullSpatioTemporalVectorDiffraction(fn_params, diff_params, P(), -5e-6, 5e-6, 65, 65, 0, 0, Z, aberration=false, hole=false, spectdata=true, harmonic=false)
 #E, x, y, z = SpatioTemporalVectorDiffraction(fn_params, diff_params, Radial(), -5e-6, 5e-6, 65, 65, 0, 0, Z, aberration=false, hole=false, spectdata=true)
 #E, x, y, z = SpatioTemporalVectorDiffraction(fn_params, diff_params, Azimuthal(), -5e-6, 5e-6, 65, 65, 0, 1, "constant", Z; verbose=false, aberration=false, hole=false, spectdata=true)
