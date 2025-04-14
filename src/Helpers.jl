@@ -1,4 +1,19 @@
 
+function meshgrid(x::Vector, y::Vector)
+    X = [i for i in x, j in 1:length(y)]
+    Y = [j for i in 1:length(x), j in y]
+    return X, Y
+end
+
+function zeropad_right(A, new_size)
+    M = size(A)[1]
+
+    padded_vector = zeros(eltype(A), new_size)
+    padded_vector[1:M] .= A
+    
+    return padded_vector
+end
+
 function zeropad(A, pad_size)
     M = size(A)[1]
 
@@ -19,34 +34,26 @@ end
 function zeropad_horizontal(A, pad_size)
     M, N = size(A)
 
-    if M % 2 != 0
-        m = Int((M-1)/2)
-        pad_range = pad_size-m:pad_size+m
-    else
-        m = Int(M/2)
-        pad_range = pad_size-m:pad_size+m-1
-    end
-
     padded_matrix = zeros(eltype(A), M, 2 * pad_size)
-    padded_matrix[:, pad_range] .= A
-    
+
+    left_pad = div(2 * pad_size - N, 2) + 1
+    right_pad = left_pad + N - 1
+
+    padded_matrix[:, left_pad:right_pad] .= A
+
     return padded_matrix
 end
 
 function zeropad_vertical(A, pad_size)
     M, N = size(A)
 
-    if N % 2 != 0
-        n = Int((N-1)/2)
-        pad_range = pad_size-n:pad_size+n
-    else
-        n = Int(N/2)
-        pad_range = pad_size-n:pad_size+n-1
-    end
-
     padded_matrix = zeros(eltype(A), 2 * pad_size, N)
-    padded_matrix[pad_range, :] .= A
-    
+
+    bottom_pad = div(2 * pad_size - M, 2) + 1
+    top_pad = bottom_pad + M - 1
+
+    padded_matrix[bottom_pad:top_pad, :] .= A
+
     return padded_matrix
 end
 
@@ -135,7 +142,7 @@ function circular_aperture(fn_params::FN_Params, R::Real)
 
     aperture = zeros(Float64, N, N)
 
-    X, Y = meshgrid(x, y)
+    Y, X = meshgrid(x, y)
     x_diff = X .- x0
     y_diff = Y .- y0
 
@@ -149,13 +156,42 @@ function elliptical_aperture(fn_params::FN_Params, a::Real, b::Real)
 
     aperture = zeros(Float64, N, N)
 
-    X, Y = meshgrid(x, y)
+    Y, X = meshgrid(x, y)
     x_diff = X .- x0
     y_diff = Y .- y0
 
     aperture[(x_diff.^2 ./ a^2) .+ (y_diff.^2 ./ b^2) .<= 1] .= 1
 
     return aperture
+end
+
+function rectangular_aperture(fn_params::FN_Params, a::Real, b::Real)
+    @unpack N, x, y, x0, y0 = fn_params
+
+    aperture = zeros(Float64, N, N)
+
+    Y, X = meshgrid(x, y)
+    x_diff = X .- x0
+    y_diff = Y .- y0
+
+    aperture[abs.(x_diff) .<= a / 2 .&& abs.(y_diff) .<= b / 2] .= 1
+
+    return aperture
+end
+
+function OAP_S(fn_params::FN_Params, diff_params::Diffract)
+
+    @unpack x, y, N = fn_params
+    @unpack f, kt, R = diff_params
+
+    YO, XO = meshgrid(x, y)
+
+    S_OAP = exp.(1im .* kt .* (XO.^2 + YO.^2) ./ (4*f))
+
+    # Circular aperture mask
+    S_OAP[sqrt.(XO.^2 + YO.^2) .> R] .= 0
+
+    return S_OAP
 end
 
 function resize_symmetric(v::AbstractVector, new_size::Int)
@@ -207,7 +243,7 @@ end
 
 function calcEnergy(x::Vector, y::Vector, J::Matrix)
 
-    En = NumericalIntegration.integrate((x, y), J)
+    En = NumericalIntegration.integrate(x, NumericalIntegration.integrate(y, J))
 
     return En
 end
@@ -288,7 +324,7 @@ function HoleyMirror!(fn_params::FN_Params, x0::Real, y0::Real, R::Real, E::Matr
 
     @unpack x, y = fn_params                        
 
-    X, Y = meshgrid(x, y)
+    Y, X = meshgrid(x, y)
     X .-= x0
     Y .-= y0
 
@@ -320,7 +356,7 @@ function FresnelCoefficients(θi::Real, λ0::Real)
     cosθi = cosd(θi)
 
     # For silver mirror @ 785 nm
-    𝑁 = readRefInd("input_data/Ag-RefInd.csv")(λ0)
+    𝑁 = readRefInd("/home/cabello/Documents/PCO/LUNA - Julia/CPA_sim/FrantzNodvik/src/input_data/Ag-RefInd.csv")(λ0)
     rp = (sqrt(𝑁^2 - sinθi^2) - 𝑁^2*cosθi) / (sqrt(𝑁^2 - sinθi^2) + 𝑁^2*cosθi)
     rs = (cosθi - sqrt(𝑁^2 - sinθi^2)) / (cosθi + sqrt(𝑁^2 - sinθi^2))
 
@@ -403,7 +439,7 @@ function Zernike(fn_params::FN_Params, E::Matrix, Z::Vector, l::Real)
 
     x = collect(range(-1, 1, n))
     y = collect(range(-1, 1, n))
-    X, Y = meshgrid(x, y)
+    Y, X = meshgrid(x, y)
 
     r = sqrt.(X.^2 .+ Y.^2)
     ϕ = atan.(Y, X)
@@ -426,7 +462,7 @@ function Zernike(fn_params::FN_Params, E::Matrix, Z::Vector, l::Real)
     Z_tot[r .> 1] .= 0
 
     Ab = resize_symmetric(Z_tot, N)
-    X, Y = meshgrid(fn_params.x, fn_params.y)
+    Y, X = meshgrid(fn_params.x, fn_params.y)
     Ab[(X.^2 .+ Y.^2) .< ϵ^2] .= 0
 
     return Ab
@@ -536,7 +572,6 @@ function VisOAMDensity(p::Matrix, x::Vector, y::Vector; save=false)
     fig
 
 end
-
 function getPolarizationEllipse2D(x, y, Ex, Ey; num_ellipses=(21, 21), draw_arrow=true,
                        amplification=0.75, color_line="white", line_width=0.5, save=true)
     # Approach taken from https://github.com/aocg-ucm/diffractio/blob/main/diffractio/vector_fields_XY.py
@@ -665,7 +700,7 @@ end
 
 function Visualize3D(Pol::String, Comp::String, fn_params::FN_Params, diff_params::Diffract, 
                         zmin::Real, zmax::Real, zsteps::Int; slicex=false, slicey=false, l = 0, 
-                            coeffs = 0, save=false, intensity=true, phase=false)
+                            coeffs = 0, save=false, intensity=true, phase=false, OAP=OAP)
     # Provide Pol as "P", "S", "LHC", or "RHC"
     # Provide Comp as "t", "x", "y", or "z" for total intensity or x-, y-, or z-component of the intensity respectively
     @unpack N = fn_params
@@ -948,13 +983,13 @@ end
 
 function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::Diffract, 
                             zmin::Real, zmax::Real, zsteps::Int, l::Real, Z::Vector; save=false, 
-                                intensity=true, phase=false, aberration=false, hole=false)
+                                intensity=true, phase=false, aberration=false, hole=false, OAP=false)
     @unpack kt, m, w = diff_params
 
     z = collect(range(zmin, zmax, zsteps))
     zR = π*w^2 / fn_params.λs
 
-    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l, Z, aberration=aberration, hole=hole)
+    Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l, Z, aberration=aberration, hole=hole, OAP=OAP)
 
     It_max = maximum(abs2.(Ef[1]) .+ abs2.(Ef[2]) .+ abs2.(Ef[3]))
     Ix_max = maximum(abs2.(Ef[1]))
@@ -974,7 +1009,7 @@ function DiffractionMovie(Pol, Comp::String, fn_params::FN_Params, diff_params::
     end
 
     for i in eachindex(z)
-        Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[i], l, Z, aberration=aberration, hole=hole);
+        Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[i], l, Z, aberration=aberration, hole=hole, OAP=OAP);
 
         ψg = (abs(l) + 1)*atan(z[i] / zR)
         Ef[1] .*= exp(1im * ψg)

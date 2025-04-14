@@ -46,10 +46,10 @@
     τ::T = τs * √(1+(4log(2)*GDD/(τs^2))^2) # Real pulse duration
 
     # Grid size
-    N::Int = 2^8 + 1
+    N::Int = 2^10
     pass::Int = 13
-    xmax::T = 60e-3
-    ymax::T = 60e-3
+    xmax::T = 40e-3
+    ymax::T = 40e-3
     zmax::T = 40e-6
     Npass::Vector{T} = collect(0:pass-1)
 

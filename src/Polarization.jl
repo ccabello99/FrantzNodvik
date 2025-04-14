@@ -12,11 +12,6 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     @unpack N, x, y, λs, Ein, c = fn_params
     @unpack w, θ, ϕ = diff_params
 
-    cosθ = cos.(θ)
-    sinθ = sin.(θ)
-    cosϕ = cos.(ϕ)
-    sinϕ = sin.(ϕ)
-
     Ex = zeros(ComplexF64, N, N)
     Ey = zeros(ComplexF64, N, N)
 
@@ -48,21 +43,21 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
         println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     end
 
-    rp_cosθ = rp .* cosθ
-    rs_cosθ = rs .* cosθ
-    sinϕ_cosϕ = sinϕ .* cosϕ
-
+    cosθ = cos.(θ)
+    sinθ = sin.(θ)
+    cosϕ = cos.(ϕ)
+    sinϕ = sin.(ϕ)
     
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
+        M00 = cos.(θ) .* cos.(ϕ).^2 .+ sin.(ϕ).^2
+        M01 = -sin.(ϕ .- (π/2)) .* cos.(ϕ .- (π/2)) .* (cos.(θ) .- 1)
 
-        M10 = M01
-        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M10 = sin.(ϕ) .* cos.(ϕ) .* (cos.(θ) .- 1)
+        M11 = cos.(θ) .* cos.(ϕ .- (π/2)).^2 .+ sin.(ϕ .- (π/2)).^2
 
-        M20 = -rp .* sinθ .* cosϕ
-        M21 = -rp .* sinθ .* sinϕ
+        M20 = cos.(ϕ) .* sin.(θ)
+        M21 = cos.(ϕ .- (π/2)) .* sin.(θ)
 
         Epx = M00 .* Ex .+ M01 .* Ey
         Epy = M10 .* Ex .+ M11 .* Ey
@@ -143,13 +138,14 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-+        M10 = M01
-        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M00 = cos.(θ) .* cos.(ϕ).^2 .+ sin.(ϕ).^2
+        M01 = -sin.(ϕ .- (π/2)) .* cos.(ϕ .- (π/2)) .* (cos.(θ) .- 1)
 
-        M20 = -rp .* sinθ .* cosϕ
-        M21 = -rp .* sinθ .* sinϕ
+        M10 = sin.(ϕ) .* cos.(ϕ) .* (cos.(θ) .- 1)
+        M11 = cos.(θ) .* cos.(ϕ .- (π/2)).^2 .+ sin.(ϕ .- (π/2)).^2
+
+        M20 = cos.(ϕ) .* sin.(θ)
+        M21 = cos.(ϕ .- (π/2)) .* sin.(θ)
 
         Epx = M00 .* Ex .+ M01 .* Ey
         Epy = M10 .* Ex .+ M11 .* Ey
@@ -232,13 +228,14 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-+        M10 = M01
-        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M00 = cos.(θ) .* cos.(ϕ).^2 .+ sin.(ϕ).^2
+        M01 = -sin.(ϕ .- (π/2)) .* cos.(ϕ .- (π/2)) .* (cos.(θ) .- 1)
 
-        M20 = -rp .* sinθ .* cosϕ
-        M21 = -rp .* sinθ .* sinϕ
+        M10 = sin.(ϕ) .* cos.(ϕ) .* (cos.(θ) .- 1)
+        M11 = cos.(θ) .* cos.(ϕ .- (π/2)).^2 .+ sin.(ϕ .- (π/2)).^2
+
+        M20 = cos.(ϕ) .* sin.(θ)
+        M21 = cos.(ϕ .- (π/2)) .* sin.(θ)
 
         Epx = M00 .* Ex .+ M01 .* Ey
         Epy = M10 .* Ex .+ M11 .* Ey
@@ -322,13 +319,14 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-+        M10 = M01
-        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M00 = cos.(θ) .* cos.(ϕ).^2 .+ sin.(ϕ).^2
+        M01 = -sin.(ϕ .- (π/2)) .* cos.(ϕ .- (π/2)) .* (cos.(θ) .- 1)
 
-        M20 = -rp .* sinθ .* cosϕ
-        M21 = -rp .* sinθ .* sinϕ
+        M10 = sin.(ϕ) .* cos.(ϕ) .* (cos.(θ) .- 1)
+        M11 = cos.(θ) .* cos.(ϕ .- (π/2)).^2 .+ sin.(ϕ .- (π/2)).^2
+
+        M20 = cos.(ϕ) .* sin.(θ)
+        M21 = cos.(ϕ .- (π/2)) .* sin.(θ)
 
         Epx = M00 .* Ex .+ M01 .* Ey
         Epy = M10 .* Ex .+ M11 .* Ey
@@ -412,13 +410,14 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-+        M10 = M01
-        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M00 = cos.(θ) .* cos.(ϕ).^2 .+ sin.(ϕ).^2
+        M01 = -sin.(ϕ .- (π/2)) .* cos.(ϕ .- (π/2)) .* (cos.(θ) .- 1)
 
-        M20 = -rp .* sinθ .* cosϕ
-        M21 = -rp .* sinθ .* sinϕ
+        M10 = sin.(ϕ) .* cos.(ϕ) .* (cos.(θ) .- 1)
+        M11 = cos.(θ) .* cos.(ϕ .- (π/2)).^2 .+ sin.(ϕ .- (π/2)).^2
+
+        M20 = cos.(ϕ) .* sin.(θ)
+        M21 = cos.(ϕ .- (π/2)) .* sin.(θ)
 
         Epx = M00 .* Ex .+ M01 .* Ey
         Epy = M10 .* Ex .+ M11 .* Ey
@@ -453,7 +452,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
                         ::Radial, Z::Vector; verbose=false, aberration=false, hole=false, magnetic=false)
 
     @unpack N, x, y, λs, Ein, c = fn_params
-    @unpack w, θ, ϕ = diff_params
+    @unpack w, θ, ϕ, r  = diff_params
 
     cosθ = cos.(θ)
     sinθ = sin.(θ)
@@ -463,7 +462,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
     Ex = zeros(ComplexF64, N, N)
     Ey = zeros(ComplexF64, N, N)
 
-    Ex .= cosϕ.* Gaussian(fn_params, w, w)
+    Ex .= cosϕ .* Gaussian(fn_params, w, w)
     Ey .= sinϕ .* Gaussian(fn_params, w, w)
 
     if aberration
@@ -502,13 +501,14 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-+        M10 = M01
-        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M00 = cos.(θ) .* cos.(ϕ).^2 .+ sin.(ϕ).^2
+        M01 = -sin.(ϕ .- (π/2)) .* cos.(ϕ .- (π/2)) .* (cos.(θ) .- 1)
 
-        M20 = -rp .* sinθ .* cosϕ
-        M21 = -rp .* sinθ .* sinϕ
+        M10 = sin.(ϕ) .* cos.(ϕ) .* (cos.(θ) .- 1)
+        M11 = cos.(θ) .* cos.(ϕ .- (π/2)).^2 .+ sin.(ϕ .- (π/2)).^2
+
+        M20 = cos.(ϕ) .* sin.(θ)
+        M21 = cos.(ϕ .- (π/2)) .* sin.(θ)
 
         Epx = M00 .* Ex .+ M01 .* Ey
         Epy = M10 .* Ex .+ M11 .* Ey
@@ -543,7 +543,7 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
                         ::Azimuthal, Z::Vector; verbose=false, aberration=false, hole=false, magnetic=false)
 
     @unpack N, x, y, λs, Ein, c = fn_params
-    @unpack w, θ, ϕ = diff_params
+    @unpack w, θ, ϕ, r = diff_params
 
     cosθ = cos.(θ)
     sinθ = sin.(θ)
@@ -592,13 +592,14 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-+        M10 = M01
-        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M00 = cos.(θ) .* cos.(ϕ).^2 .+ sin.(ϕ).^2
+        M01 = -sin.(ϕ .- (π/2)) .* cos.(ϕ .- (π/2)) .* (cos.(θ) .- 1)
 
-        M20 = -rp .* sinθ .* cosϕ
-        M21 = -rp .* sinθ .* sinϕ
+        M10 = sin.(ϕ) .* cos.(ϕ) .* (cos.(θ) .- 1)
+        M11 = cos.(θ) .* cos.(ϕ .- (π/2)).^2 .+ sin.(ϕ .- (π/2)).^2
+
+        M20 = cos.(ϕ) .* sin.(θ)
+        M21 = cos.(ϕ .- (π/2)) .* sin.(θ)
 
         Epx = M00 .* Ex .+ M01 .* Ey
         Epy = M10 .* Ex .+ M11 .* Ey
@@ -678,13 +679,14 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-+        M10 = M01
-        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M00 = cos.(θ) .* cos.(ϕ).^2 .+ sin.(ϕ).^2
+        M01 = -sin.(ϕ .- (π/2)) .* cos.(ϕ .- (π/2)) .* (cos.(θ) .- 1)
 
-        M20 = -rp .* sinθ .* cosϕ
-        M21 = -rp .* sinθ .* sinϕ
+        M10 = sin.(ϕ) .* cos.(ϕ) .* (cos.(θ) .- 1)
+        M11 = cos.(θ) .* cos.(ϕ .- (π/2)).^2 .+ sin.(ϕ .- (π/2)).^2
+
+        M20 = cos.(ϕ) .* sin.(θ)
+        M21 = cos.(ϕ .- (π/2)) .* sin.(θ)
 
         Epx = M00 .* Ex .+ M01 .* Ey
         Epy = M10 .* Ex .+ M11 .* Ey
@@ -766,13 +768,14 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-+        M10 = M01
-        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M00 = cos.(θ) .* cos.(ϕ).^2 .+ sin.(ϕ).^2
+        M01 = -sin.(ϕ .- (π/2)) .* cos.(ϕ .- (π/2)) .* (cos.(θ) .- 1)
 
-        M20 = -rp .* sinθ .* cosϕ
-        M21 = -rp .* sinθ .* sinϕ
+        M10 = sin.(ϕ) .* cos.(ϕ) .* (cos.(θ) .- 1)
+        M11 = cos.(θ) .* cos.(ϕ .- (π/2)).^2 .+ sin.(ϕ .- (π/2)).^2
+
+        M20 = cos.(ϕ) .* sin.(θ)
+        M21 = cos.(ϕ .- (π/2)) .* sin.(θ)
 
         Epx = M00 .* Ex .+ M01 .* Ey
         Epy = M10 .* Ex .+ M11 .* Ey
@@ -857,13 +860,14 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-+        M10 = M01
-        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M00 = cos.(θ) .* cos.(ϕ).^2 .+ sin.(ϕ).^2
+        M01 = -sin.(ϕ .- (π/2)) .* cos.(ϕ .- (π/2)) .* (cos.(θ) .- 1)
 
-        M20 = -rp .* sinθ .* cosϕ
-        M21 = -rp .* sinθ .* sinϕ
+        M10 = sin.(ϕ) .* cos.(ϕ) .* (cos.(θ) .- 1)
+        M11 = cos.(θ) .* cos.(ϕ .- (π/2)).^2 .+ sin.(ϕ .- (π/2)).^2
+
+        M20 = cos.(ϕ) .* sin.(θ)
+        M21 = cos.(ϕ .- (π/2)) .* sin.(θ)
 
         Epx = M00 .* Ex .+ M01 .* Ey
         Epy = M10 .* Ex .+ M11 .* Ey
@@ -949,13 +953,14 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-        M10 = M01
-        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M00 = cos.(θ) .* cos.(ϕ).^2 .+ sin.(ϕ).^2
+        M01 = -sin.(ϕ .- (π/2)) .* cos.(ϕ .- (π/2)) .* (cos.(θ) .- 1)
 
-        M20 = -rp .* sinθ .* cosϕ
-        M21 = -rp .* sinθ .* sinϕ
+        M10 = sin.(ϕ) .* cos.(ϕ) .* (cos.(θ) .- 1)
+        M11 = cos.(θ) .* cos.(ϕ .- (π/2)).^2 .+ sin.(ϕ .- (π/2)).^2
+
+        M20 = cos.(ϕ) .* sin.(θ)
+        M21 = cos.(ϕ .- (π/2)) .* sin.(θ)
 
         Epx = M00 .* Ex .+ M01 .* Ey
         Epy = M10 .* Ex .+ M11 .* Ey
@@ -1041,13 +1046,14 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-+        M10 = M01
-        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M00 = cos.(θ) .* cos.(ϕ).^2 .+ sin.(ϕ).^2
+        M01 = -sin.(ϕ .- (π/2)) .* cos.(ϕ .- (π/2)) .* (cos.(θ) .- 1)
 
-        M20 = -rp .* sinθ .* cosϕ
-        M21 = -rp .* sinθ .* sinϕ
+        M10 = sin.(ϕ) .* cos.(ϕ) .* (cos.(θ) .- 1)
+        M11 = cos.(θ) .* cos.(ϕ .- (π/2)).^2 .+ sin.(ϕ .- (π/2)).^2
+
+        M20 = cos.(ϕ) .* sin.(θ)
+        M21 = cos.(ϕ .- (π/2)) .* sin.(θ)
 
         Epx = M00 .* Ex .+ M01 .* Ey
         Epy = M10 .* Ex .+ M11 .* Ey
@@ -1133,13 +1139,14 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-+        M10 = M01
-        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M00 = cos.(θ) .* cos.(ϕ).^2 .+ sin.(ϕ).^2
+        M01 = -sin.(ϕ .- (π/2)) .* cos.(ϕ .- (π/2)) .* (cos.(θ) .- 1)
 
-        M20 = -rp .* sinθ .* cosϕ
-        M21 = -rp .* sinθ .* sinϕ
+        M10 = sin.(ϕ) .* cos.(ϕ) .* (cos.(θ) .- 1)
+        M11 = cos.(θ) .* cos.(ϕ .- (π/2)).^2 .+ sin.(ϕ .- (π/2)).^2
+
+        M20 = cos.(ϕ) .* sin.(θ)
+        M21 = cos.(ϕ .- (π/2)) .* sin.(θ)
 
         Epx = M00 .* Ex .+ M01 .* Ey
         Epy = M10 .* Ex .+ M11 .* Ey
@@ -1225,13 +1232,14 @@ function Polarization(fn_params::FN_Params, diff_params::Diffract, l::Real,
 
     if magnetic == false
         
-        M00 = rp_cosθ .* cosϕ.^2 .+ rs .* sinϕ.^2
-        M01 = sinϕ_cosϕ .* (rp_cosθ .- rs)
-+        M10 = M01
-        M11 = rs .* cosϕ.^2 .+ rp_cosθ .* sinϕ.^2
+        M00 = cos.(θ) .* cos.(ϕ).^2 .+ sin.(ϕ).^2
+        M01 = -sin.(ϕ .- (π/2)) .* cos.(ϕ .- (π/2)) .* (cos.(θ) .- 1)
 
-        M20 = -rp .* sinθ .* cosϕ
-        M21 = -rp .* sinθ .* sinϕ
+        M10 = sin.(ϕ) .* cos.(ϕ) .* (cos.(θ) .- 1)
+        M11 = cos.(θ) .* cos.(ϕ .- (π/2)).^2 .+ sin.(ϕ .- (π/2)).^2
+
+        M20 = cos.(ϕ) .* sin.(θ)
+        M21 = cos.(ϕ .- (π/2)) .* sin.(θ)
 
         Epx = M00 .* Ex .+ M01 .* Ey
         Epy = M10 .* Ex .+ M11 .* Ey

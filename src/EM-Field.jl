@@ -1,10 +1,4 @@
 
-function meshgrid(x::Vector, y::Vector)
-    X = [i for i in x, j in 1:length(y)]
-    Y = [j for i in 1:length(x), j in y]
-    return X, Y
-end
-
 function LaguerreGauss(params::FN_Params, P::Int, L::Real, A::Real, W::Real)
     
     # Laguerre-Gauss equation: 
@@ -18,18 +12,13 @@ function LaguerreGauss(params::FN_Params, P::Int, L::Real, A::Real, W::Real)
     Z = zeros(ComplexF64, N, N)
     W2 = W^2
     
-    X, Y = meshgrid(x, y)
-
-    x_diff = X .- x0
-    y_diff = Y .- y0
-    x_diff2 = x_diff.^2
-    y_diff2 = y_diff.^2
+    Y, X = meshgrid(x, y)
             
-    t .= (x_diff2 .+ y_diff2) ./ (W2)
-    Phi .= L .* atan.(y_diff, x_diff)
+    t .= ((X .- x0).^2 .+ (Y .- y0).^2) ./ (W2)
+    Phi .= L .* atan.((Y .- y0), (X .- x0))
     C = A * sqrt(2 * gamma(P + 1) / (π*gamma(P + abs(L) + 1)))
 
-    Term1 .= (sqrt(2) .* sqrt.(x_diff2 .+ y_diff2) ./ W).^(abs(L))
+    Term1 .= (sqrt(2) .* sqrt.((X .- x0).^2  .+ (Y .- y0).^2) ./ W).^(abs(L))
     Term2 = laguerrel.(P, abs(L), 2 .* t)
     Term3 = exp.(-t)
     Term4 = exp.(1im .* Phi)
@@ -47,13 +36,9 @@ function Gaussian(params::FN_Params, wx::Real, wy::Real)
     wx2 = wx^2
     wy2 = wy^2
 
-    X, Y = meshgrid(x, y)
-    x_diff = X .- x0
-    y_diff = Y .- y0
-    x_diff2 = x_diff.^2
-    y_diff2 = y_diff.^2
+    Y, X = meshgrid(x, y)
 
-    gauss .= exp.(-(x_diff2 ./ (wx2)) .- (y_diff2 ./ (wy2)))
+    gauss .= exp.(-((X .- x0).^2 ./ (wx2)) .- ((Y .- y0).^2 ./ (wy2)))
 
     return gauss
 
@@ -67,13 +52,9 @@ function SuperGaussian(params::FN_Params, w::Real, nsg::Int)
     super_gaussian = zeros(N, N)
     w2 = w^2
 
-    X, Y = meshgrid(x, y)
-    x_diff = X .- x0
-    y_diff = Y .- y0
-    x_diff2 = x_diff.^2
-    y_diff2 = y_diff.^2
+    Y, X = meshgrid(x, y)
 
-    super_gaussian .= exp.(-(x_diff2 .+ y_diff2) ./ (w2).^(2*nsg))
+    super_gaussian .= exp.(-((X .- x0).^2 .+ (Y .- y0).^2) ./ (w2).^(2*nsg))
 
     return super_gaussian
 

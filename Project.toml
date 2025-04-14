@@ -1,10 +1,13 @@
 [deps]
+AngularSpectrumMethod = "34f41046-6bdb-4a9c-a4a9-19e45b4e2d17"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 ClassicalOrthogonalPolynomials = "b30e2e7b-c4ee-47da-9d5f-2c5c27239acd"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Dierckx = "39dd38d3-220a-591b-8e3c-4c3a8c710a94"
 FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+FourierTools = "b18b359b-aebc-45ac-a139-9c0ccbb2871e"
 GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
 JLD = "4138dd39-2aa7-5051-a626-17a0bb65d9c8"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"

@@ -12,6 +12,7 @@ mutable struct Diffract{T}
     m::Int
     θ::Matrix{T}
     ϕ::Matrix{T}
+    r::Matrix{T}
 
     function Diffract{T}(fn_params::FN_Params, f::Real, fnum::Real, 
                             w::Real, nt::Real) where T
@@ -24,12 +25,11 @@ mutable struct Diffract{T}
         k = 2π/λs
         kt = k * nt 
 
-        #aperture = circular_aperture(fn_params, R)
+        aperture = circular_aperture(fn_params, R)
 
-        aperture = elliptical_aperture(fn_params, 97e-3/2, 25e-3/2)
+        #aperture = elliptical_aperture(fn_params, 97e-3/2, 25e-3/2)
 
-        display(Plots.heatmap(aperture))
-        println(R)
+        #aperture = rectangular_aperture(fn_params, 97e-3/2, 25e-3/2)
 
         if N % 2 != 0
             n = Int((N-1)/2 + 1)
@@ -40,19 +40,20 @@ mutable struct Diffract{T}
         end
 
         # Grid
-        X, Y = meshgrid(x .- x0, y .- y0)
-        r = sqrt.(X.^2 .+ Y.^2)
+        Y, X = meshgrid(x, y)
+        r = sqrt.((X .- x0).^2 .+ (Y .- y0).^2)
         θ = r ./ f
-        ϕ = atan.(Y, X)
+        ϕ = atan.(Y .- y0, X .- x0)
 
-        new{T}(f, fnum, w, R, sinθmax, nt, kt, aperture, m, θ, ϕ)
+        new{T}(f, fnum, w, R, sinθmax, nt, kt, aperture, m, θ, ϕ, r)
     end
 
 end
 
 
 function TransmissionFunction(fn_params::FN_Params, diff_params::Diffract, 
-                                Pol, l::Real, Z::Vector; verbose=false, aberration=false, hole=false, magnetic=false)
+                                Pol, l::Real, Z::Vector; verbose=false, aberration=false, 
+                                hole=false, magnetic=false, OAP=false)
     @unpack sinθmax, R, aperture, θ, ϕ = diff_params
     @unpack N, x, y = fn_params
     
@@ -60,6 +61,10 @@ function TransmissionFunction(fn_params::FN_Params, diff_params::Diffract,
     Etx = zeros(ComplexF64, N, N)
     Ety = similar(Etx)
     Etz = similar(Etx)
+
+    if OAP
+        aperture = OAP_S(fn_params, diff_params)
+    end
 
     # Initialize fields and apply polarization matrix
     if l != 0
@@ -70,7 +75,11 @@ function TransmissionFunction(fn_params::FN_Params, diff_params::Diffract,
 
     # Apodization
     #Apod = sqrt.((cos.(θ)))
-    Apod = 2 ./ (1 .+ cos.(θ))
+    Apod = 1
+    if OAP
+        Apod = 2 ./ (1 .+ cos.(θ))
+    end
+    
 
     # Transmitted fields
     Etx .= Apod .* aperture .* Epx
@@ -96,13 +105,14 @@ end
 function RichardsWolf(fn_params::FN_Params, diff_params::Diffract, 
                         Pol, z::Real, l::Real, Z::Vector; fft_plan=false, 
                         verbose=false, aberration=false, hole=false,
-                        fft_plan_vert=nothing, fft_plan_hor=nothing, magnetic=false)
+                        fft_plan_vert=nothing, fft_plan_hor=nothing, 
+                        magnetic=false, OAP=false)
     @unpack sinθmax, f, R, kt, m, θ = diff_params
     @unpack N, λs, dx, dy = fn_params
 
     factor = -(1im * R^2 / (f * λs * m^2))
 
-    Etx, Ety, Etz = TransmissionFunction(fn_params, diff_params, Pol, l, Z, aberration=aberration, hole=hole, verbose=verbose, magnetic=magnetic)
+    Etx, Ety, Etz = TransmissionFunction(fn_params, diff_params, Pol, l, Z, aberration=aberration, hole=hole, verbose=verbose, magnetic=magnetic, OAP=OAP)
 
     # Fields
     Efx = zeros(ComplexF64, N, N)
@@ -210,9 +220,212 @@ function RichardsWolf(fn_params::FN_Params, diff_params::Diffract,
 
 end
 
+function AngularSpectrumPropagator(fn_params::FN_Params, diff_params::Diffract, Et::Vector,
+                        z::Real,; lens=false, OAP=false, cuda=false, verbose=false)
+    
+    @unpack f, R, kt, m, w, aperture, θ = diff_params
+    @unpack N, λs, x, y, x0, y0, dx, dy, Ein = fn_params
+
+    Y, X = meshgrid(x .- x0, y .- y0)
+
+    Etx = zeros(ComplexF64, N, N)
+    Ety = zeros(ComplexF64, N, N)
+    Etz = zeros(ComplexF64, N, N)    
+    t = ones(ComplexF64, N, N)
+
+    Etx .= Et[1]
+    Ety .= Et[2]
+    Etz .= Et[3]
+
+    if lens
+        lens = exp.(-1im .* (kt .* (((X.^2 .+ Y.^2) ./ (2 * f)))))
+        t .*= lens
+    end 
+
+    if OAP
+        aperture = OAP_S(fn_params, diff_params)
+    end
+
+    #scaleField!(x, y, E, zeros(N, N), Ein)
+ 
+    # Freq axes
+    fs = 1 / dx
+    fx = collect(fftshift(fftfreq(N, fs)))
+    fy = collect(fftshift(fftfreq(N, fs)))
+    Fy, Fx = meshgrid(fx, fy)
+
+    arg = (2π)^2 .* ((1 / λs).^2 .- Fx.^2 .- Fy.^2)
+    tmp = sqrt.(abs.(arg))
+    kz = ifelse.(arg .>= 0, tmp, 1im * tmp)
+    H = exp.(1im .* kz .* z)
+
+    # Transmission function
+    t .*= aperture 
+    Etx .*= t ./ cos.(θ)
+    Ety .*= t ./ cos.(θ)
+    Etz .*= t ./ cos.(θ)
+
+    # Propagate
+
+    if cuda
+        Cu_Etx = cu(Etx)
+        Cu_Ety = cu(Ety)
+        Cu_Etz = cu(Etz)
+        cF = plan_fft!(Cu_Etx)
+        cIF = plan_ifft!(Cu_Etx)
+    end
+
+    if cuda == false
+
+        Etx = ffts2d!(Etx)
+        Etx .= iffts2d(Etx .* H)
+
+        Ety = ffts2d!(Ety)
+        Ety .= iffts2d(Ety .* H)
+
+        Etz = ffts2d!(Etz)
+        Etz .= iffts2d(Etz .* H)
+        
+    else
+
+        expz = cu(H)
+        
+        CUDA.@sync mul!(Cu_Etx, cF, Cu_Etx)
+        Cu_Etx = fftshift(Cu_Etx)
+        
+        Cu_Etx .*= expz
+        Cu_Etx = ifftshift(Cu_Etx)
+        
+        CUDA.@sync mul!(Cu_Etx, cIF, Cu_Etx)
+        copyto!(Etx, Cu_Etx)
+
+        CUDA.@sync mul!(Cu_Ety, cF, Cu_Ety)
+        Cu_Ety = fftshift(Cu_Ety)
+        
+        Cu_Ety .*= expz
+        Cu_Ety = ifftshift(Cu_Ety)
+        
+        CUDA.@sync mul!(Cu_Ety, cIF, Cu_Ety)
+        copyto!(Ety, Cu_Ety)
+
+        CUDA.@sync mul!(Cu_Etz, cF, Cu_Etz)
+        Cu_Etz = fftshift(Cu_Etz)
+        
+        Cu_Etz .*= expz
+        Cu_Etz = ifftshift(Cu_Etz)
+        
+        CUDA.@sync mul!(Cu_Etz, cIF, Cu_Etz)
+        copyto!(Etz, Cu_Etz)
+    end
+
+    # Print some useful info about focus field
+    if verbose
+        I_focus = abs2.(E)
+        E_focus = calcEnergy(fx, fy, I_focus)
+        println("Energy in field = ", round(E_focus * 1e3, digits=3), " mJ")
+        I = findmax(I_focus)[2]
+        maxx_index, maxy_index = I[1], I[2]
+        w0_x, w0_y = e22D(fx, fy, maxx_index, maxy_index, I_focus)
+        println("Beam waist (e2) =", round(w0_x*1e6, digits=2), " μm x ", round(w0_y*1e6, digits=2), " μm")
+        w0_x, w0_y = FWHM2D(fx, fy, maxx_index, maxy_index, I_focus)
+        println("Beam waist (FWHM) =", round(w0_x*1e6, digits=2), " μm x ", round(w0_y*1e6, digits=2), " μm")
+        Aeff = calcAeff(fx, fy, I_focus)
+        println("Effective area = ", round(Aeff*1e12, digits=2), " μm^2")
+        Ppeak = 0.94 * E_focus / 3.8e-15
+        if l == 0
+            I_target = 2 * Ppeak / Aeff
+        else
+            I_target = Ppeak / Aeff
+        end
+        println("Peak intensity = ", round(I_target * 1e-4, digits=3), " W/cm^2")
+    end
+
+    return Etx, Ety, Etz
+end
+
+function Bluestein(fn_params::FN_Params, diff_params::Diffract, z::Real, 
+    x_interval::Vector, y_interval::Vector, l::Real; aberration=false, hole=false,
+    focusing=false)
+
+    """
+    Compute the field at distance z using the Bluestein method.
+    
+    Bluestein method allows arbitrary selection of output plane dimensions via x_interval and y_interval.
+    
+    Reference: 
+    Hu, Y., Wang, Z., Wang, X. et al. Efficient full-path optical calculation of scalar and vector diffraction using the Bluestein method. 
+    Light Sci Appl 9, 119 (2020).
+    """
+
+    @unpack f, R, kt, m, w, aperture = diff_params
+    @unpack N, λs, x, y, x0, y0, dx, dy, Ein = fn_params
+
+    Y, X = meshgrid(x .- x0, y .- y0)
+
+    E = zeros(ComplexF64, N, N)
+    t = ones(ComplexF64, N, N)
+
+    if l == 0
+        E .= Gaussian(fn_params, w, w)
+    else
+        E .= LaguerreGauss(fn_params, 0, l, 1, w)
+    end
+
+    if aberration
+        Φxy = Zernike(fn_params, E, Z, 0)
+        abb = exp.(1im.*Φxy)
+        t .*= abb
+    end
+
+    if hole
+        HoleyMirror!(fn_params, -w, 0, 10.25e-3, E)
+    end
+
+    if focusing
+        lens = exp.(-1im*π/(λs*f) * (X.^2 + Y.^2))
+        t .*= lens
+    end 
+
+    scaleField!(x, y, E, zeros(N, N), Ein)
+
+    # Transmission function
+    t .*= aperture 
+    E .*= t
+
+    E = bluestein_fft2(E .* exp(im * 2π / λs / (2*z) .* (X.^2 .+ Y.^2)),
+                        x_interval[1] / (z * λs), x_interval[2] / (z * λs), 1 / dx,
+                        y_interval[1] / (z * λs), y_interval[2] / (z * λs), 1 / dy)
+    
+    dfx = 1 / (N * dx)
+    dfy = 1 / (N * dy)
+    
+    fx_zfft = bluestein_fftfreq(x_interval[1] / (z * λs), x_interval[2] / (z * λs), N)
+    fy_zfft = bluestein_fftfreq(y_interval[1] / (z * λs), y_interval[2] / (z * λs), N)
+    dfx_zfft = fx_zfft[2] - fx_zfft[1]
+    dfy_zfft = fy_zfft[2] - fy_zfft[1]
+    
+    nn, mm = meshgrid(collect(0:N-1) .* dfx_zfft / dfx, collect(0:N-1) .* dfy_zfft / dfy)
+    factor = (dx * dy * exp(π * im .* (nn .+ mm)))
+    
+    x = fx_zfft .* (z * λs)
+    y = fy_zfft .* (z * λs)
+
+    Y, X = meshgrid(x .- x0, y .- y0)
+    
+    dx = x[2] - x[1]
+    dy = y[2] - y[1]
+    
+    extent_x = x[end] - x[1] + dx
+    extent_y = y[end] - y[1] + dy
+    
+    return E .* factor .* exp(im * π / (λs * z) .* (X.^2 .+ Y.^2) .+ im * 2π / λs * z) / (im * z * λs), x, y
+
+end
+
+
 function FullSpatialProfile(fn_params::FN_Params, diff_params::Diffract, Pol, 
                                 zmin::Real, zmax::Real, zsteps::Int, l::Real, Z::Vector; 
-                                    coeffs = 0, aberration=false, hole=false, magnetic=false)
+                                    coeffs = 0, aberration=false, hole=false, magnetic=false, OAP=OAP)
     @unpack N, λs = fn_params
     @unpack w, nt, kt = diff_params
 
@@ -233,14 +446,14 @@ function FullSpatialProfile(fn_params::FN_Params, diff_params::Diffract, Pol,
     # Run once to compile and save x and y vectors
     Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l, Z, 
                 aberration=aberration, hole=hole, fft_plan=true,
-                fft_plan_vert=fft_plan_vert, fft_plan_hor=fft_plan_hor, magnetic=magnetic)
+                fft_plan_vert=fft_plan_vert, fft_plan_hor=fft_plan_hor, magnetic=magnetic, OAP=OAP)
 
     println("Performing calculation for λ = ", string(round(fn_params.λs.*1e9, digits=2)), " nm")
 
     foreach(eachindex(z)) do I
 
         Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, z[I], l, Z, aberration=aberration, hole=hole, 
-                                fft_plan=true, fft_plan_vert=fft_plan_vert, fft_plan_hor=fft_plan_hor, magnetic=magnetic)
+                                fft_plan=true, fft_plan_vert=fft_plan_vert, fft_plan_hor=fft_plan_hor, magnetic=magnetic, OAP=OAP)
     
         # Include Gouy phase
         ψg = (abs(l) + 1)*atan(z[I] / zR)
@@ -592,39 +805,35 @@ end
 
 function XUVSTVD(fn_params::FN_Params, diff_params::Diffract, Pol, 
     zmin::Real, zmax::Real, zsteps::Int, νsteps::Int, l::Real, Z::Vector; 
-    verbose=false, aberration=false, hole=false)
+    verbose=false, aberration=false, hole=false, save=false)
 
-    @unpack N, t0, ϕ0, τs, τ, ωs, nt, c = fn_params
-    @unpack nt, w, θ, ϕ = diff_params
+    @unpack N, t0, ϕ0, τs, τ, ωs, nt, c, Ein = fn_params
+    @unpack f, nt, w, θ, ϕ, aperture = diff_params
 
     # Create harmonic spectral profile
     ev2Hz =  1.602177e-19 ./ h
-    cd("input_data")
-    ν = CSV.read("SpectrumInTIPTOE.txt", DataFrame)[!,1] .* ev2Hz
-    cd("..")
-    Iν_n(ν) = ν.^(-3)
-
-    # Define grid for wavelength sampling
-    ν_samples = collect(range(ν[1], ν[end], νsteps))
-    dν = ν_samples[2] - ν_samples[1]
-    λ_samples = collect(c ./ reverse(ν_samples))
-    Iν_nn = Iν_n.(ν_samples)
-
-    # Sampled spectrum + define spectral phase
-    norm = NumericalIntegration.integrate(ν_samples, sqrt.(Iν_nn))
-    ϕν = 0
-    Eν_samples = sqrt.(Iν_nn) .* exp.(1im .* ϕν) ./ norm
+    λL = 785e-9
 
     # Define Fresnel coefficients for XUV parabola
     data = CSV.read("input_data/a_Al2O3_Al.csv", DataFrame)
     E, Rs, Rp, ϕRs, ϕRp = data[!,1], data[!,2], data[!,3], data[!,4], data[!,5]
-    spl1 = Spline1D(E .* ev2Hz, Rs)
-    spl2 = Spline1D(E .* ev2Hz, Rp)
-    spl3 = Spline1D(E .* ev2Hz, ϕRs .* (π/180))
-    spl4 = Spline1D(E .* ev2Hz, ϕRp .* (π/180))
+    ν_i = E .* ev2Hz
+    spl1 = Spline1D(ν_i, Rs, k=5)
+    spl2 = Spline1D(ν_i, Rp, k=5)
+    spl3 = Spline1D(ν_i, ϕRs .* (π/180), k=5)
+    spl4 = Spline1D(ν_i, ϕRp .* (π/180), k=5)
 
-    r_s(ν) = sqrt(spl1(ν)) * exp(1im * spl2(ν))
-    r_p(ν) = sqrt(spl3(ν)) * exp(1im * spl4(ν))
+    r_s(ν) = sqrt(spl1(ν)) * exp(1im * spl3(ν))
+    r_p(ν) = sqrt(spl2(ν)) * exp(1im * spl4(ν))
+
+    # Sampled spectrum + define spectral phase
+    ν_samples = collect(range(ν_i[1], ν_i[end], νsteps))
+    λ_samples = collect(c ./ reverse(ν_samples))
+    Iν(ν) = ν.^(-3)
+    I_ν = Iν.(ν_samples)
+    norm = NumericalIntegration.integrate(ν_samples, sqrt.(I_ν))
+    ϕν = 0
+    Eν_samples = sqrt.(I_ν) .* exp.(1im .* ϕν) ./ norm
 
     # Initialize spatial profile of harmonics
     cosθ = cos.(θ)
@@ -640,15 +849,15 @@ function XUVSTVD(fn_params::FN_Params, diff_params::Diffract, Pol,
     Eν_y = zeros(ComplexF64, νsteps, N, N, zsteps)
     Eν_z = zeros(ComplexF64, νsteps, N, N, zsteps)
 
-    wn(λ) = 400e-3 * atan(785e-9 / (π * 2e-6 * (785e-9 / fn_params.λs)))
+    wn(λ) = 400e-3 * atan(λL / (π * 2e-6 * (λL / fn_params.λs)))
     cosθ = cos.(θ)
     Apod = 2 ./ (1 .+ cosθ)
 
     # Create fft plan
-    M = 2^13
+    M = 2^10
     pad_size = Int(M/2)
-    fft_plan_vert = plan_fft(zeropad_vertical(Eν_x[1, :, :, 33], pad_size), 1; flags=FFTW.MEASURE)
-    fft_plan_hor = plan_fft(zeropad_horizontal(Eν_x[1, :, :, 33], pad_size), 2; flags=FFTW.MEASURE)
+    fft_plan_vert = plan_fft(zeropad_vertical(Eν_x[1, :, :, 1], pad_size), 1; flags=FFTW.MEASURE)
+    fft_plan_hor = plan_fft(zeropad_horizontal(Eν_x[1, :, :, 1], pad_size), 2; flags=FFTW.MEASURE)
 
     # Run once to compile and save x, y, and z vectors
     Ef, x, y = RichardsWolf(fn_params, diff_params, Pol, 0, l, Z, 
@@ -657,19 +866,29 @@ function XUVSTVD(fn_params::FN_Params, diff_params::Diffract, Pol,
 
     z = collect(range(zmin, zmax, zsteps))
 
-    foreach(eachindex(ν_samples, zsteps)) do I
+    if save
+        if isdir("XUV-STVD")
+            nothing
+        else
+            mkdir("XUV-STVD")
+        end
+    end
+
+     foreach(CartesianIndices((νsteps, zsteps))) do I
 
         # Frequency-dependent spatial profile
-
         fn_params.λs = λ_samples[I[1]]
         k = 2π/fn_params.λs
         diff_params.kt = k * nt
         diff_params.w = wn(fn_params.λs)
-        zR = π * w^2 * nt / fn_params.λs
+        zR = π * diff_params.w^2 * nt / fn_params.λs
 
         Z = ZernikeCoefficients(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-        rs = rs(ν_samples[I[1]])
-        rp = rp(ν_samples[I[1]])
+        rs = r_s(ν_samples[I[1]])
+        rp = r_p(ν_samples[I[1]])
+
+        println("Current wavelength : ", round(fn_params.λs.*1e9, digits=2), " nm")
+        println("Reflection coefficients are : Rp = ", round(abs2.(rp), digits=4), " and Rs = ", round(abs2.(rs), digits=4))
     
         Ex .= Gaussian(fn_params, diff_params.w, diff_params.w)
         Ex .*= rp.^2
@@ -678,6 +897,8 @@ function XUVSTVD(fn_params::FN_Params, diff_params::Diffract, Pol,
             Φxy_x = Zernike(fn_params, Ex, Z, 0)
             Ex .*= exp.(1im.*Φxy_x)
         end
+
+        scaleField!(x, y, Ex, Ey, Ein)
 
         # Polarization transformation after focusing optic
         rp_cosθ = rp .* cosθ
@@ -703,10 +924,11 @@ function XUVSTVD(fn_params::FN_Params, diff_params::Diffract, Pol,
         Ez .= Apod .* aperture .* Ez
 
         # Propagation factor
-        expz = exp.(1im .* kt .* z[I[2]] .* cosθ)
+        factor = -(1im * f / (fn_params.λs * diff_params.kt^2))
+        ψg = (abs(l) + 1)*atan(z[I[2]] / zR)
+        expz = exp.(1im .* diff_params.kt .* z[I[2]] .* cosθ .+ 1im .* ψg)
 
         # For zero-padding
-        M = 2^13
         pad_size = Int(M/2)
         if N % 2 != 0
             n = Int((N-1)/2)
@@ -717,10 +939,9 @@ function XUVSTVD(fn_params::FN_Params, diff_params::Diffract, Pol,
         end
 
         # Compute 2D FFT one dimension at a time
-
-        Etx_vertpad = zeropad_vertical(Etx .* expz ./ cosθ, pad_size)
-        Ety_vertpad = zeropad_vertical(Ety .* expz ./ cosθ, pad_size)
-        Etz_vertpad = zeropad_vertical(Etz .* expz ./ cosθ, pad_size)
+        Etx_vertpad = zeropad_vertical(Ex .* expz ./ cosθ, pad_size)
+        Ety_vertpad = zeropad_vertical(Ey .* expz ./ cosθ, pad_size)
+        Etz_vertpad = zeropad_vertical(Ez .* expz ./ cosθ, pad_size)
 
         tempx = fftshift(fft_plan_vert * fftshift(Etx_vertpad, 1), 1)
         tempy = fftshift(fft_plan_vert * fftshift(Ety_vertpad, 1), 1)
@@ -734,23 +955,33 @@ function XUVSTVD(fn_params::FN_Params, diff_params::Diffract, Pol,
         Ey .= factor .* fftshift(fft_plan_hor * fftshift(tempy_horpad, 2), 2)[:, pad_range]
         Ez .= factor .* fftshift(fft_plan_hor * fftshift(tempz_horpad, 2), 2)[:, pad_range]
 
-        Eν_x[i, :, :, :] .= Eν_samples[i] .* Ex
-        Eν_y[i, :, :, :] .= Eν_samples[i] .* Ey
-        Eν_z[i, :, :, :] .= Eν_samples[i] .* Ez
+        Eν_x[I[1], :, :, :] .= Eν_samples[I[1]] .* Ex
+        Eν_y[I[1], :, :, :] .= Eν_samples[I[1]] .* Ey
+        Eν_z[I[1], :, :, :] .= Eν_samples[I[1]] .* Ez
+
+        println(I[1], "-", I[2], " step done")
 
     end
 
-    save("Ex_real_freq.jld", "Ex_real", real.(Eν_x))
-    save("Ex_imag_freq.jld", "Ex_imag", imag.(Eν_x))
-    save("Ey_real_freq.jld", "Ey_real", real.(Eν_y))
-    save("Ey_imag_freq.jld", "Ey_imag", imag.(Eν_y))
-    save("Ez_real_freq.jld", "Ez_real", real.(Eν_z))
-    save("Ez_imag_freq.jld", "Ez_imag", imag.(Eν_z))
+    if save
+        cd("XUV-STVD")
+        JLD.@save "Ex_real_freq.jld" real.(Eν_x)
+        JLD.@save "Ex_imag_freq.jld" imag.(Eν_x)
+        JLD.@save "Ey_real_freq.jld" real.(Eν_y)
+        JLD.@save "Ey_imag_freq.jld" imag.(Eν_y)
+        JLD.@save "Ez_real_freq.jld" real.(Eν_z)
+        JLD.@save "Ez_imag_freq.jld" imag.(Eν_z)
 
-    CSV.write("freq.csv", Tables.table(ν_samples), writeheader=true)
-    CSV.write("x.csv", Tables.table(x), writeheader=true)
-    CSV.write("y.csv", Tables.table(y), writeheader=true)
-    CSV.write("z.csv", Tables.table(z), writeheader=true)
+        CSV.write("freq.csv", Tables.table(ν_samples), writeheader=true)
+        CSV.write("x.csv", Tables.table(x), writeheader=true)
+        CSV.write("y.csv", Tables.table(y), writeheader=true)
+        CSV.write("z.csv", Tables.table(z), writeheader=true)
+        cd("..")
+        return
+    else
+        E = [Eν_x, Eν_y, Eν_z]
+        return E, x, y, z, ν_samples
+    end
 
 end
 
